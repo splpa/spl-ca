@@ -1,0 +1,29 @@
+{
+  "name": "spl-ca",
+  "version": "1.0.0",
+  "description": "SPL's CA cert reissue webserver",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/splpa/spl-ca.git"
+  },
+  "keywords": [
+    "Certificate",
+    "Authority",
+    "webserver",
+    "for",
+    "SPL"
+  ],
+  "author": "Jose A. Vargas",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/splpa/spl-ca/issues"
+  },
+  "homepage": "https://github.com/splpa/spl-ca#readme",
+  "dependencies": {
+    "dotenv": "^16.3.2"
+  }
+}
