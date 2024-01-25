@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>PA Certificate Authority</title>
+    <link rel="icon" href="/img/pa_lock.svg">
+    <link rel="stylesheet" href="/css/global.css">
+  </head>
+  <body>
+    <div class="titlebar">
+      <div class="titlebar__logo">
+        <img src="/img/pa_lock.svg" alt="PA Lock" />
+      </div>
+      <div class="titlebar__title">
+        <h1>PA Certificate Authority</h1>
+      </div>
+    </div>
+    <div class="container">
+        <div class="overview">
+          This is the API info page for the PA Windows Standalone Certificate Authority. 
+          The purpose of this webservice is to allow Certificate renewal for all node 
+          applications to auto renew their own certificates without IT Admins having to 
+          manually renew them.
+        </div>
+        <div class="api">
+            <h2>API Endpoints</h2>
+            <ul>
+              <li>
+                <strong>POST:</strong> <a href="/api/renew">/api/renew</a> - This endpoint will renew the certificate for the current node.
+                <p>
+                    <strong>Requirements:</strong>
+                </p>
+                <ol>
+                  <li>
+                    <p>The request must send a JSON object in the body with the following properties:</p>
+                    <ul>
+                      <li>
+                        <strong>req</strong>: This is the csr for the certificate generated with openssl, must be sent as a base64 encoded string. 
+                      </li>
+                    </ul>
+                  </li>
+                  <li>
+                    <p>The CSR request must meet these requirements:</p>
+                    <ul>
+                      <li>
+                        <strong>A</strong> - The CSR must expire within 7 days of the request.
+                      </li>
+                      <li>
+                        <strong>B</strong> - Both the common name and the subject alternatives must be the same as configured with the PA Certificate Authority.
+                      </li>
+                      <li>
+                        <strong>C</strong> - The CSR must be signed with the same key as the current certificate.
+                      </li>
+                      <li>
+                        <strong>D</strong> - The request must be from the same CN host.
+                      </li>
+                    </ul>
+                  </li>
+                </ol>
+              </li>
+            </ul>
+        </div>
+    </div>
+  </body>
+</html>

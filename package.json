@@ -4,7 +4,8 @@
   "description": "SPL's CA cert reissue webserver",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js",
+    "dev": "node server.js"
   },
   "repository": {
     "type": "git",
@@ -24,6 +25,11 @@
   },
   "homepage": "https://github.com/splpa/spl-ca#readme",
   "dependencies": {
-    "dotenv": "^16.3.2"
+    "@splpa-org/cert-helper": "^1.0.2",
+    "better-sqlite3": "^9.3.0",
+    "dotenv": "^16.3.2",
+    "express": "^4.18.2",
+    "jsrsasign": "^11.0.0",
+    "jsrsasign-util": "^1.0.5"
   }
 }

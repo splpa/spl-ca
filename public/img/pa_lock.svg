@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg viewBox="3.389 0 496.611 486.443" xmlns="http://www.w3.org/2000/svg" xmlns:bx="https://boxy-svg.com">
+  <defs>
+    <pattern id="pattern-1" viewBox="0 0 100 100" patternUnits="userSpaceOnUse" preserveAspectRatio="none" width="100" height="100" bx:pinned="true">
+      <title>2</title>
+      <ellipse style="fill: rgb(216, 216, 216); stroke: rgb(0, 0, 0);" cx="50.549" cy="50.427" rx="39.207" ry="39.207"/>
+    </pattern>
+    <radialGradient gradientUnits="userSpaceOnUse" cx="291.367" cy="184.647" r="178.362" id="gradient-0" gradientTransform="matrix(0.977143, -0.005658, 0.005454, 0.94233, -33.35352, 10.055596)">
+      <stop offset="0" style=""/>
+      <stop offset="1" style="stop-color: rgb(152, 152, 152);"/>
+    </radialGradient>
+    <radialGradient gradientUnits="userSpaceOnUse" cx="249.988" cy="212.659" r="178.362" id="gradient-1" spreadMethod="pad">
+      <stop offset="0" style="stop-color: rgb(0% 0% 0%)"/>
+      <stop offset="1" style="stop-color: rgb(0% 0% 0%)"/>
+    </radialGradient>
+  </defs>
+  <path d="M 249.988 212.659 m -178.362 0 a 178.362 211.396 0 1 0 356.724 0 a 178.362 211.396 0 1 0 -356.724 0 Z M 249.988 212.659 m -120.708 0 a 120.708 152.683 0 0 1 241.416 0 a 120.708 152.683 0 0 1 -241.416 0 Z" style="fill: url('#gradient-0'); stroke: url('#gradient-1'); paint-order: stroke; stroke-miterlimit: 5.43;" bx:shape="ring 249.988 212.659 120.708 152.683 178.362 211.396 1@52b1f59f"/>
+  <rect x="7.086" width="488.732" height="301.741" style="stroke: rgb(0, 0, 0); fill: rgb(153, 37, 43);" y="183.87" rx="29.068" ry="29.068"/>
+  <text style="fill: rgb(255, 255, 255); font-family: Arial, sans-serif; font-size: 397.2px; font-weight: 700; white-space: pre;" transform="matrix(0.865995, 0.000466, 0, 0.865995, 23.290668, 55.877571)" x="-11.991" y="477.035" dx="3.539" dy="-0.002">PA</text>
+</svg>

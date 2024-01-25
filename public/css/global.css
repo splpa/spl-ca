@@ -1,0 +1,32 @@
+body {
+  margin: 0px;
+}
+.titlebar__logo {
+  width: 75px;
+  margin: 1.1em 2em;
+}
+.titlebar {
+  position: relative;
+  display: inline-flex;
+  background-color: #003152;
+  width: 100%;
+  margin: 0px;
+}
+.titlebar__title {
+  font-family: 'Times New Roman', Times, serif;
+  font-weight: bold;
+  font-size: 1.75em;
+  color: white;
+  letter-spacing: 3.05px;
+  margin-left: 20px;
+}
+.overview {
+  font-family: Georgia, 'Times New Roman', Times, serif;
+  font-size: 2.5em;
+  padding: 50px 50px 0px 50px;
+}
+.api {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 1.25em;
+  padding: 0px 75px;
+}
