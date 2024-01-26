@@ -1,5 +1,5 @@
 const Database = require('better-sqlite3');
-const db = new Database('approved.db', { verbose: console.log });
+const db = new Database('approved.db', { /*verbose: console.log*/ });
 let e = {};
 initalizeDB = async () => {
   const tableExists = await db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='approved';`).get();
@@ -16,19 +16,18 @@ initalizeDB = async () => {
       updateSubjectStr INTEGER,
       altNames TEXT,
       updateAltNames INTEGER,
-      approved INTEGER,
+      approveAll INTEGER,
       logs TEXT
     );`).run();
   }
 }
 initalizeDB();
 
-e.getApproved = async (publicKeyHash) => {
+e.getRecord = async (publicKeyHash, renewRequestId) => {
   let res = await db.prepare('SELECT * FROM approved WHERE publicKeyHash = ?').get(publicKeyHash);
-  console.log(res);
-  let approved = {};
-  if ( res ) {
-    approved = {
+  let record = false;
+  if ( res !== undefined ) {
+    record = {
       "publicKeyHash": res.publicKeyHash,// TEXT PRIMARY KEY,
       "created": res.created,// INTEGER,
       "createdISO": res.createdISO,// TEXT,
@@ -39,31 +38,33 @@ e.getApproved = async (publicKeyHash) => {
       "updateSubjectStr": res.updateSubjectStr === 1 ? true : false,// INTEGER,
       "altNames": res.altNames,// TEXT,
       "updateAltNames": res.updateAltNames === 1 ? true : false,// INTEGER,
-      "approved": res.approved === 1 ? true : false,// INTEGER,
+      "approveAll": res.approveAll === 1 ? true : false,// INTEGER,
       "logs": res.logs.split(";") // TEXT
     }
   }
-  return approved;
+  console.log(`${renewRequestId}: ${record === false ? "Record not found for this key" : "Record found for this key" } '${publicKeyHash}'.`);
+  return record;
 };
 
-e.updateApproved = async (approved) => {
-  let converted = {
-    "publicKeyHash": approved.publicKeyHash,  // TEXT PRIMARY KEY,
-    "created": approved.created,  // INTEGER,
-    "createdISO": approved.createdISO,  // TEXT,
-    "requestID": approved.requestID,  // INTEGER,
-    "createdIP": approved.createdIP,  // TEXT,
-    "updateIP": approved.updateIP === true ? 1 : 0,  // INTEGER,
-    "subjectStr": approved.subjectStr,  // TEXT,
-    "updateSubjectStr": approved.updateSubjectStr === true ? 1 : 0,  // INTEGER,
-    "altNames": approved.altNames,  // TEXT,
-    "updateAltNames": approved.updateAltNames === true ? 1 : 0,  // INTEGER,
-    "approved": approved.approved === true ? 1 : 0,  // INTEGER,
-    "logs": approved.logs.join(";"),  // TEXT
+e.updateRecord = async (record, renewRequestId) => {
+  let mappedRecord = {
+    "publicKeyHash": record.publicKeyHash,  // TEXT PRIMARY KEY,
+    "created": record.created,  // INTEGER,
+    "createdISO": record.createdISO,  // TEXT,
+    "requestID": record.requestID,  // INTEGER,
+    "createdIP": record.createdIP,  // TEXT,
+    "updateIP": record.updateIP === true ? 1 : 0,  // INTEGER,
+    "subjectStr": record.subjectStr,  // TEXT,
+    "updateSubjectStr": record.updateSubjectStr === true ? 1 : 0,  // INTEGER,
+    "altNames": record.altNames,  // TEXT,
+    "updateAltNames": record.updateAltNames === true ? 1 : 0,  // INTEGER,
+    "approveAll": record.approveAll === true ? 1 : 0,  // INTEGER,
+    "logs": record.logs.join(";"),  // TEXT
   }
   
-  const existingApproved = await db.prepare('SELECT * FROM approved WHERE publicKeyHash = ?').get(converted.publicKeyHash);
-  if (existingApproved) {
+  const existingRecord = await db.prepare('SELECT * FROM approved WHERE publicKeyHash = ?').get(mappedRecord.publicKeyHash);
+  if (existingRecord) {
+    console.log(`${renewRequestId}: Updating existing record for ${mappedRecord.publicKeyHash}.`);
     return await db.prepare(`UPDATE approved SET
       created = ?,
       createdISO = ?,
@@ -74,23 +75,24 @@ e.updateApproved = async (approved) => {
       updateSubjectStr = ?,
       altNames = ?,
       updateAltNames = ?,
-      approved = ?,
+      approveAll = ?,
       logs = ?
       WHERE publicKeyHash = ?`).run(
-        converted.created,
-        converted.createdISO,
-        converted.requestID,
-        converted.createdIP,
-        converted.updateIP,
-        converted.subjectStr,
-        converted.updateSubjectStr,
-        converted.altNames,
-        converted.updateAltNames,
-        converted.approved,
-        converted.logs,
-        converted.publicKeyHash
+        mappedRecord.created,
+        mappedRecord.createdISO,
+        mappedRecord.requestID,
+        mappedRecord.createdIP,
+        mappedRecord.updateIP,
+        mappedRecord.subjectStr,
+        mappedRecord.updateSubjectStr,
+        mappedRecord.altNames,
+        mappedRecord.updateAltNames,
+        mappedRecord.approveAll,
+        mappedRecord.logs,
+        mappedRecord.publicKeyHash
       );
   } else {
+    console.log(`${renewRequestId}: Creating new record for ${record.publicKeyHash}.`);
     return await db.prepare(`INSERT INTO approved (
       publicKeyHash,
       created,
@@ -102,21 +104,22 @@ e.updateApproved = async (approved) => {
       updateSubjectStr,
       altNames,
       updateAltNames,
-      approved,
+      approveAll,
       logs
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
-      converted.publicKeyHash,
-      converted.created,
-      converted.createdISO,
-      converted.requestID,
-      converted.createdIP,
-      converted.updateIP,
-      converted.subjectStr,
-      converted.updateSubjectStr,
-      converted.altNames,
-      converted.updateAltNames,
-      converted.approved,
-      converted.logs
+      mappedRecord.publicKeyHash,
+      mappedRecord.created,
+      mappedRecord.createdISO,
+      mappedRecord.requestID,
+      mappedRecord.createdIP,
+      mappedRecord.updateIP,
+      mappedRecord.subjectStr,
+      mappedRecord.updateSubjectStr,
+      mappedRecord.altNames,
+      mappedRecord.updateAltNames,
+      mappedRecord.approveAll,
+      mappedRecord.logs
     );
   }
 }
+module.exports = e;

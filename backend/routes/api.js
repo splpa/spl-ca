@@ -20,7 +20,6 @@ router.post('/renew', async (req, res) => {
     return res.json({isError: true, msg: "Invalid base64 string for req..."});
   }
   let plainText = Buffer.from(reqData, 'base64').toString('utf8');
-  console.log(plainText)
   if ( plainText.startsWith("-----BEGIN CERTIFICATE REQUEST-----") && /-----END CERTIFICATE REQUEST-----(\n{0,1}|\r\n)$/.test(plainText) ) {
     return await validate(req, res, plainText, renewRequestId);
   } 
