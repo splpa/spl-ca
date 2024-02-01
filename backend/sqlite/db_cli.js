@@ -108,7 +108,8 @@ let mainMenu = () => {
         let num = parseInt(userRes2);
         if ( num > 0 && num <= pending2.data.length ) {
           if ( await allowApproveAll(listedKeys[num-1]) === true ) {
-            console.log("Request CertificatesInfo.");
+            console.log( await display(await getRecords("publicKey", listedKeys[num-1]).data) );
+            console.log("Request Approved.");
           } else {
             console.log("Error approving request.");
           }

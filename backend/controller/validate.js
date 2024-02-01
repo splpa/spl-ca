@@ -15,7 +15,7 @@ let markActive = async (record, eventId) => {
   record.updateSubjectStr = false,
   record.updateAltNames = false,
   record.approveAll = false,
-  record.record.logs.unshift(eventId);
+  record.logs.unshift(eventId);
   return await updateRecord(record, eventId);
 }
 e.validate = async (req, res, csrText, eventId) => {
