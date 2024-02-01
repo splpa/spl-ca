@@ -110,9 +110,9 @@ let validCSR = async (record, csr, eventId) => {
     if ( certRes.isError ){
       return {isValid:false, msg: "Error retrieving certificate, Admins will need to investigate."}
     }
-    certStr = Buffer.from(certRes.b64Cert, "base64");
+    certStr = Buffer.from(certRes.b64Cert, "base64").toString();
   } else if ( record.currentCert !== "" ){
-    certStr = Buffer.from(record.currentCert, "base64");
+    certStr = Buffer.from(record.currentCert, "base64").toString();
   } else {
     //no cert exist only continue if admin has approved this key
     if ( record.approveAll !== true ) {
@@ -123,8 +123,9 @@ let validCSR = async (record, csr, eventId) => {
   if ( record.approveAll ==! true ) {
     cert = new X509();
     try {
-      cert.readCertPEM(certStr); 
+      console.log(certStr)
     } catch (error) {
+      cert.readCertPEM(certStr); 
       console.log(`${eventId}: Error parsing certificate text. Error: ${error.toString()}`);
       return {isValid:false, msg: "Error parsing certificate text. Admins will need to investigate."};
     }
