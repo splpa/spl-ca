@@ -7,3 +7,4 @@ build
 *.req
 *.crt
 *.pem
+*.db

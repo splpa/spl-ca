@@ -1,16 +1,17 @@
 const Database = require('better-sqlite3');
-const db = new Database('approved.db', { /*verbose: console.log*/ });
+const db = new Database('./backend/sqlite/records.db', { /*verbose: console.log*/ });
 let e = {};
 initalizeDB = async () => {
-  const tableExists = await db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='approved';`).get();
+  const tableExists = await db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='CertificatesInfo';`).get();
   if (!tableExists) {
-    console.log('Creating approved table');
-    await db.prepare(`CREATE TABLE IF NOT EXISTS approved (
+    console.log('Creating CertificatesInfo table');
+    await db.prepare(`CREATE TABLE IF NOT EXISTS CertificatesInfo (
       publicKey TEXT PRIMARY KEY,
       active TEXT,
+      pending TEXT,
       currentCert TEXT,
       created INTEGER,
-      createdISO TEXT,
+      createdTimestamp TEXT,
       requestID INTEGER,
       createdIP TEXT,
       updateIP TEXT,
@@ -26,15 +27,16 @@ initalizeDB = async () => {
 initalizeDB();
 
 e.getRecord = async (publicKey, eventId) => {
-  let res = await db.prepare('SELECT * FROM approved WHERE publicKey = ?').get(publicKey);
+  let res = await db.prepare('SELECT * FROM CertificatesInfo WHERE publicKey = ?').get(publicKey);
   let record = false;
   if ( res !== undefined ) {
     record = {
       publicKey: res.publicKey,// TEXT PRIMARY KEY,
       active: res.active === "true" ? true : false,
+      pending: res.pending === "true" ? true : false,// INTEGER,
       currentCert: res.currentCert,
       created: res.created,// INTEGER,
-      createdISO: res.createdISO,// TEXT,
+      createdTimestamp: res.createdTimestamp,// TEXT,
       requestID: res.requestID,// INTEGER,
       createdIP: res.createdIP,// TEXT,
       updateIP: res.updateIP === "true" ? true : false,// INTEGER,
@@ -54,9 +56,10 @@ e.updateRecord = async (record, eventId) => {
   let mappedRecord = {
     publicKey: record.publicKey,  // TEXT PRIMARY KEY,
     active: record.active === true ? "true" : "false",  // TEXT,
+    pending: record.pending === true ? "true" : "false",  // TEXT,
     currentCert: record.currentCert,  // TEXT,
     created: record.created,  // INTEGER,
-    createdISO: record.createdISO,  // TEXT,
+    createdTimestamp: record.createdTimestamp,  // TEXT,
     requestID: record.requestID,  // INTEGER,
     createdIP: record.createdIP,  // TEXT,
     updateIP: record.updateIP === true ? "true" : "false",  // TEXT,
@@ -68,14 +71,15 @@ e.updateRecord = async (record, eventId) => {
     logs: record.logs.join(";"),  // TEXT
   }
   
-  const existingRecord = await db.prepare('SELECT * FROM approved WHERE publicKey = ?').get(mappedRecord.publicKey);
+  const existingRecord = await db.prepare('SELECT * FROM CertificatesInfo WHERE publicKey = ?').get(mappedRecord.publicKey);
   if (existingRecord) {
     console.log(`${eventId}: Updating existing record for ${mappedRecord.publicKey}.`);
-    return await db.prepare(`UPDATE approved SET
+    return await db.prepare(`UPDATE CertificatesInfo SET
       active = ?,
+      pending = ?,
       currentCert = ?,
       created = ?,
-      createdISO = ?,
+      createdTimestamp = ?,
       requestID = ?,
       createdIP = ?,
       updateIP = ?,
@@ -87,9 +91,10 @@ e.updateRecord = async (record, eventId) => {
       logs = ?
       WHERE publicKey = ?`).run(
         mappedRecord.active,
+        mappedRecord.pending,
         mappedRecord.currentCert,
         mappedRecord.created,
-        mappedRecord.createdISO,
+        mappedRecord.createdTimestamp,
         mappedRecord.requestID,
         mappedRecord.createdIP,
         mappedRecord.updateIP,
@@ -103,12 +108,13 @@ e.updateRecord = async (record, eventId) => {
       );
   } else {
     console.log(`${eventId}: Creating new record for ${record.publicKey}.`);
-    return await db.prepare(`INSERT INTO approved (
+    return await db.prepare(`INSERT INTO CertificatesInfo (
       publicKey,
       active,
+      pending,
       currentCert,
       created,
-      createdISO,
+      createdTimestamp,
       requestID,
       createdIP,
       updateIP,
@@ -118,12 +124,13 @@ e.updateRecord = async (record, eventId) => {
       updateAltNames,
       approveAll,
       logs
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
       mappedRecord.publicKey,
       mappedRecord.active,
+      mappedRecord.pending,
       mappedRecord.currentCert,
       mappedRecord.created,
-      mappedRecord.createdISO,
+      mappedRecord.createdTimestamp,
       mappedRecord.requestID,
       mappedRecord.createdIP,
       mappedRecord.updateIP,

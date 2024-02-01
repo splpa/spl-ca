@@ -5,7 +5,7 @@ const { randomUUID } = require('crypto');
 
 router.post('/renew', async (req, res) => {
   let eventId = randomUUID();
-  console.log(`${eventId}: Renew request from ${req.ip}`);
+  console.log(`${eventId}: Renew request from ${req.ip.replace("::ffff:", "")}`);
   if (!req.body.req){
     console.log("Renew request missing req...");
     return res.json({isError: true, msg: "Missing req..."})
