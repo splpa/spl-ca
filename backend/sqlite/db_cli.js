@@ -110,7 +110,7 @@ let mainMenu = () => {
         let num = parseInt(userRes2);
         if ( num > 0 && num <= pending2.data.length ) {
           if ( await allowApproveAll(listedKeys[num-1]) === true ) {
-            display(await getRecords("publicKey", listedKeys[num-1]));
+            display( (await getRecords("publicKey", listedKeys[num-1])).data );
             console.log("Request Approved.");
           } else {
             console.log("Error approving request.");
