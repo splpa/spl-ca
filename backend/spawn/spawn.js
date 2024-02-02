@@ -43,6 +43,7 @@ e.retrieveCert = async (requestId, publicKey) => {
   let certPath = join(certsRoot, `${createHash("sha256").update(publicKey).digest('hex')}.rsp`);
   console.log(certPath, existsSync(certPath));
   console.log(await cleanUp(certPath));
+  console.log(certPath, existsSync(certPath));
   let retrieveRes = ""; 
   try {
     retrieveRes = await spawnAsync("certreq", ["-retrieve", "-config", "SPLROOTCA\\PathologyAssociates-SPLROOTCA-CA", requestId, certPath]);
