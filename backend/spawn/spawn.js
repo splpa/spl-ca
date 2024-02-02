@@ -41,6 +41,7 @@ let spawnAsync = async (command, args) => {
 }
 e.retrieveCert = async (requestId, publicKey) => {
   let certPath = join(certsRoot, `${createHash("sha256").update(publicKey).digest('hex')}.rsp`);
+  console.log(certPath, existsSync(certPath));
   await cleanUp(certPath);
   let retrieveRes = ""; 
   try {
