@@ -39,7 +39,9 @@ let exists = async (publicKey) => {
   return typeof await db.prepare('SELECT * FROM CertificatesInfo WHERE publicKey = ?').get(publicKey) == "undefined" ? false : true;
 };
 let getPending = async () => {
-  return await getRecords("requestID", -1);
+  let noRequestID =  await getRecords("requestID", -1);
+  let pending = await getRecords("pending", "true");
+  return {isError: false, data: noRequestID.data.concat(pending.data) };
 };
 let getInactive = async () => {
   return await getRecords("active", "false");
