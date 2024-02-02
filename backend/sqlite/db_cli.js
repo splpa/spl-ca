@@ -5,7 +5,7 @@ const validProps = ["publicKey","active","pending","currentCert","created","crea
 const pubKeyDisp = 20;
 const displayProps = [{key:"publicKey", size: pubKeyDisp},{key:"active", size: 6},{key:"pending", size: 10},{key:"createdTimestamp", size: 18},{key:"requestID", size: 10},{key:"createdIP", size: 15},{key:"updateIP", size: 8},{key:"updateSubjectStr", size: 18},{key:"updateAltNames", size: 15},{key:"approveAll", size: 10}];
 const updatibleProps = [ "active", "updateIP", "updateSubjectStr", "updateAltNames", "approveAll" ];
-const itemSpace = "   ";
+const itemSpace = "  ";
 let listedKeys = [];
 /*
   *key                  *type
