@@ -46,7 +46,7 @@ e.retrieveCert = async (requestId, publicKey) => {
       unlinkSync(certPath);
       unlinkSync(certPath);
     } catch (error) {
-      
+      console.log("Error deleting certificate file: ", error.toString());
     }
   }
   let retrieveRes = ""; 
