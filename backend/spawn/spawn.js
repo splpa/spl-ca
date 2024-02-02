@@ -44,7 +44,6 @@ e.retrieveCert = async (requestId, publicKey) => {
   if (existsSync (certPath) ) {
     try {
       unlinkSync(certPath);
-      unlinkSync(certPath);
     } catch (error) {
       console.log("Error deleting certificate file: ", error.toString());
     }
@@ -69,6 +68,7 @@ e.retrieveCert = async (requestId, publicKey) => {
     }
     return {isError: true, msg: "Certificate was not retrieved, it did not exist."};
   }
+  console.log("Failed to retrieve certificate: ", retrieveRes);
   return {isError: true, msg: "Failed to retrieve certificate.", err: retrieveRes.toString()};
 }
 
