@@ -51,7 +51,7 @@ e.retrieveCert = async (requestId, publicKey) => {
   }
   let retrieveRes = ""; 
   try {
-    retrieveRes = await spawnAsync("certreq", ["-retrieve", "-config", "SPLROOTCA\\PathologyAssociates-SPLROOTCA-CA", requestId, certPath]);
+    retrieveRes = await spawnAsync("certreq", ["-retrieve", "-f", "-config", "SPLROOTCA\\PathologyAssociates-SPLROOTCA-CA", requestId, certPath]);
   } catch (error) {
     return {isError: true, msg: "Error retrieving certificate.", msg: error.toString()};
   }
@@ -112,7 +112,7 @@ e.submitCSR = async (csrText, publicKey)=> {
 let signCert = async (requestId, publicKey) => {
   let signRes = "";
   try {
-    signRes = await spawnAsync("certutil", [ "-config", "SPLROOTCA\\PathologyAssociates-SPLROOTCA-CA", "-resubmit", requestId]);  
+    signRes = await spawnAsync("certutil", [ "-f", "-config", "SPLROOTCA\\PathologyAssociates-SPLROOTCA-CA", "-resubmit", requestId]);  
   } catch (error) {
     return {isError: true, msg: "Error signing CSR, Admins must investigate.", err: error.toString()};
   }
