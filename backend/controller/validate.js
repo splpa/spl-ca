@@ -108,7 +108,7 @@ let validCSR = async (record, csr, eventId) => {
     //first check if cert already exists
     let certRes = await retrieveCert(record.requestID, record.publicKey, eventId);
     if ( certRes.isError ){
-      return {isValid:false, msg: "Error retrieving certificate, Admins will need to investigate."}
+      return { isValid:false, msg: certRes.msg }
     }
     certStr = Buffer.from(certRes.b64Cert, "base64").toString();
   } else if ( record.currentCert !== "" ){

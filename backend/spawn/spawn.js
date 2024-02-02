@@ -53,6 +53,7 @@ e.retrieveCert = async (requestId, publicKey) => {
   try {
     retrieveRes = await spawnAsync("certreq", ["-retrieve", "-f", "-config", "SPLROOTCA\\PathologyAssociates-SPLROOTCA-CA", requestId, certPath]);
   } catch (error) {
+    console.log("Error retrieving certificate: ", error.toString());
     return {isError: true, msg: "Error retrieving certificate.", msg: error.toString()};
   }
   if ( retrieveRes.includes("Certificate retrieved") ) {
