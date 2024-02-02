@@ -2,7 +2,7 @@ const { spawn } = require('child_process');
 const { join } = require('path');
 const { createHash } = require('crypto');
 const { cleanUp } = require('../controller/cleanUp');
-const { readFileSync, writeFileSync, existsSync, mkdirSync } = require('fs');
+const { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } = require('fs');
 const certsRoot = join("./", 'temp');
 let checkCertRoot = () => {
   if ( !existsSync(certsRoot) ) {
@@ -40,10 +40,15 @@ let spawnAsync = async (command, args) => {
   });
 }
 e.retrieveCert = async (requestId, publicKey) => {
-  let certPath = join(certsRoot, `${createHash("sha256").update(publicKey).digest('hex')}.rsp`);
-  console.log(certPath, existsSync(certPath));
-  console.log(await cleanUp(certPath));
-  console.log(certPath, existsSync(certPath));
+  let certPath = join(certsRoot, `${createHash("sha256").update(publicKey).digest('hex').substring(0,20)}.rsp`);
+  if (existsSync (certPath) ) {
+    try {
+      unlinkSync(certPath);
+      unlinkSync(certPath);
+    } catch (error) {
+      
+    }
+  }
   let retrieveRes = ""; 
   try {
     retrieveRes = await spawnAsync("certreq", ["-retrieve", "-config", "SPLROOTCA\\PathologyAssociates-SPLROOTCA-CA", requestId, certPath]);
@@ -67,7 +72,7 @@ e.retrieveCert = async (requestId, publicKey) => {
 }
 
 e.submitCSR = async (csrText, publicKey)=> {
-  let reqPath = join(certsRoot, `${createHash("sha256").update(publicKey).digest('hex')}.req`);
+  let reqPath = join(certsRoot, `${createHash("sha256").update(publicKey).digest('hex').substring(20)}.req`);
   if ( existsSync( reqPath ) ) {
     let cleanUpRes = cleanUp(reqPath);
     if ( cleanUpRes.isError === true ) {
