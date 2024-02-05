@@ -68,7 +68,7 @@ e.retrieveCert = async (requestId, publicKey) => {
     }
     return {isError: true, msg: "Certificate was not retrieved, it did not exist."};
   } else if ( retrieveRes.includes("Certificate request is pending") ) {
-    return {isError: false, isPending: true, msg: "Certificate is pending."}
+    return {isError: true, msg: "Certificate is pending And requires manual approval."}
   }
   console.log("Failed to retrieve certificate: ", retrieveRes);
   return {isError: true, msg: "Failed to retrieve certificate.", err: retrieveRes.toString()};

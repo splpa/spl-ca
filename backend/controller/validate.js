@@ -110,14 +110,7 @@ let validCSR = async (record, csr, eventId) => {
     if ( certRes.isError ){
       return { isValid:false, msg: certRes.msg }
     }
-    if ( certRes.isPending === true ) {
-      if ( record.approveAll !== true ) {
-        console.log(`${eventId}: Pending Admin approval for ${record.publicKey}.`);
-        return {isValid:false, msg: "Admin approval is required to sign certificate."}
-      }
-    }else {
-      certStr = Buffer.from(certRes.b64Cert, "base64").toString();
-    }
+    certStr = Buffer.from(certRes.b64Cert, "base64").toString();
   } else if ( record.currentCert !== "" ){
     certStr = Buffer.from(record.currentCert, "base64").toString();
   } else {
