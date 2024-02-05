@@ -41,7 +41,9 @@ let exists = async (publicKey) => {
 let getPending = async () => {
   let noRequestID =  await getRecords("requestID", -1);
   let pending = await getRecords("pending", "true");
-  return {isError: false, data: noRequestID.data.concat(pending.data) };
+  let allPending = noRequestID.data.concat(pending.data) ;
+  allPending = Array.from(new Map(allPending.map(item => [item.publicKey, item])).values());
+  return {isError: false, data: allPending};
 };
 let getInactive = async () => {
   return await getRecords("active", "false");
