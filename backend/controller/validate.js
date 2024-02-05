@@ -123,9 +123,9 @@ let validCSR = async (record, csr, eventId) => {
   if ( record.approveAll ==! true ) {
     cert = new X509();
     try {
+      cert.readCertPEM(certStr); 
       console.log(certStr)
     } catch (error) {
-      cert.readCertPEM(certStr); 
       console.log(`${eventId}: Error parsing certificate text. Error: ${error.toString()}`);
       return {isValid:false, msg: "Error parsing certificate text. Admins will need to investigate."};
     }
