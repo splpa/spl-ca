@@ -1,27 +1,81 @@
 require('dotenv').config();
+const client = require('twilio')(process.env.ACCOUNTSID, process.env.AUTH_TOKEN);
 const express = require("express");
-const { readFileSync } = require('fs');
+const { readFileSync, writeFileSync } = require('fs');
 const http = require('http');
 const https = require('https');
+const { certDue, newCSR } = require('./backend/controller/selfCheck');
+const { submitCSR } = require('./backend/spawn/spawn');
 const apiRoutes = require('./backend/routes/api');
+const { resolve } = require('path');
 const httpsPort = 443;
 const httpPort = 80;
-const required_env_vars = ["SSL_KEY_PATH", "SSL_CERT_PATH"];
+const required_env_vars = ["SSL_KEY_PATH", "SSL_CERT_PATH", "SERVICE_NAME", "TWILIO_PHONE_NUMBER", "IT_PHONE", "ACCOUNTSID", "AUTH_TOKEN"];
 required_env_vars.forEach( (e) => {
   if (!process.env[e]){
     console.log(`Missing environment variable ${e}`);
     process.exit(1);
   }
 });
-// testing:{
+let textIT = (msg) => {
+  client.messages
+    .create({
+        body: msg,
+        from: process.env.TWILIO_PHONE_NUMBER,
+        to: process.env.IT_PHONE
+    })
+    .then(message => {
+        console.log("Text message sent to IT", message.sid);
+      }
+    )
+    .done();
+};
+let checkCert = () => {
+  let certCheck = certDue( readFileSync( process.env.SSL_CERT_PATH ).toString() );
+  if ( certCheck.isDue === true ) {
+    //time to get a new cert
+    let config = readFileSync(`./certs/${process.env.SERVICE_NAME}.cfg`).toString();
+    let newCert = newCSR( config, resolve("./certs"), resolve(`./certs/${process.env.SERVICE_NAME}.key`) );
+    if ( newCert.isError === true ) {
+      textIT(`${process.env.SERVICE_NAME}. ${newCert.msg}: ${newCert.err}\nCert expires in ${certCheck.daysLeft} days.`);
+      return false;
+    }
+    let certRes = submitCSR( newCert.csr, certCheck.publicKey );
+    if ( certRes.isError === true ) {
+      textIT(`${process.env.SERVICE_NAME}. ${certRes.msg}: ${certRes.err}\nCert expires in ${certCheck.daysLeft} days.`);
+      return false;
+    }
+    //write new cert to file
+    let currentCertFile = resolve(`./certs/${process.env.SERVICE_NAME}.crt`)
+    let newCertStr = Buffer.from(certRes.b64Cert, "base64").toString();
+    let oldCertFile = resolve(`./certs/expired-${certCheck.expires}-${process.env.SERVICE_NAME}.crt`)
+    let oldCertStr = readFileSync(currentCertFile).toString();
+    try {
+      writeFileSync(oldCertFile, oldCertStr);
+    } catch (error) {
+      textIT(`${process.env.SERVICE_NAME}. Failed to create old cert file: ${error}\nCert expires in ${certCheck.daysLeft} days.`);
+      return false;
+    }
+    try {
+      writeFileSync(currentCertFile, newCertStr);
+    } catch (error) {
+      textIT(`${process.env.SERVICE_NAME}. Failed to create old cert file: ${error}\nCert expires in ${certCheck.daysLeft} days.`);
+      return false;
+    }
+    return true;
+  }
+  return false;
+}
+testing:{
 //   const {X509, KJUR } = require("jsrsasign");
 //   const { submitCSR, retreiveCert } = require("./backend/spawn/spawn");
+//   import { writeFileSync } from 'fs';
 //   const certsRoot = "./";
-//   let csrText = readFileSync('./test-splrootca.req').toString();
+//   let csrText = readFileSync('./${process.env.SERVICE_NAME}.req').toString();
 //   let csr = new KJUR.asn1.csr.CSRUtil.getParam( csrText );
 //   let csrInfo = new KJUR.asn1.csr.CertificationRequest(csr);
 //   let csrPublicKey = csrInfo.params.sbjpubkey.replace(/(\r|\n|-+(BEGIN|END) PUBLIC KEY-+)/g,"");
-//   let certStr = readFileSync('./test-splrootca.crt').toString();
+//   let certStr = readFileSync('./${process.env.SERVICE_NAME}.crt').toString();
 //   cert = new X509();
 //   cert.readCertPEM(certStr);
 //   let altNames = cert.getExtSubjectAltName().array.map( (e) => {return `${e.dns?`DNS: ${e.dns}`: `IP: ${e.ip}`}`}).join(", ");
@@ -35,7 +89,13 @@ required_env_vars.forEach( (e) => {
 //     console.log( await submitCSR(csrText,csrPublicKey,"test") );
 //   })()
 //   //process.exit(0);
-// }
+}
+
+if ( checkCert() === true ) {
+  textIT(`${process.env.SERVICE_NAME}. New certificate installed.`);
+  console.log("New certificate installed.");
+}
+
 const app = express();
 app.use(express.static("./public"));
 app.use(express.json());
