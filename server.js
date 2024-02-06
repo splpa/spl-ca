@@ -64,6 +64,7 @@ let checkCert = () => {
     }
     return true;
   }
+  console.log(`Cert is not due. Cert expires in ${certCheck.daysLeft} days.`);
   return false;
 }
 testing:{
