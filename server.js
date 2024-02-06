@@ -27,8 +27,7 @@ let textIT = (msg) => {
     .then(message => {
         console.log("Text message sent to IT", message.sid);
       }
-    )
-    .done();
+    );
 };
 let checkCert = () => {
   let certCheck = certDue( readFileSync( process.env.SSL_CERT_PATH ).toString() );
