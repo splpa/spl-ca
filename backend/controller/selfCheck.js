@@ -16,7 +16,7 @@ e.certDue = (certStr) => {
     return {isDue: false};
 };
 e.newCSR = ( config, cwd, keypath ) => {
-  let config = config.replace(/^\[\s*req\s*\]\s*\n/,"[ req ]\nprompt = no\n");
+  config = config.replace(/^\[\s*req\s*\]\s*\n/,"[ req ]\nprompt = no\n");
   try {
     writeFileSync( join(cwd, "tempConfig.cnf"), config);
   } catch (error) {
