@@ -26,7 +26,7 @@ e.newCSR = ( config, cwd, keypath ) => {
   let subjectText = /\[\s*subject\s*\][^\[]+/.exec(config)[0];
   config = config.replace(subjectText, "[ subject ]\r\n");
   subjectText = subjectText.split(/(\r\n|\n)/).filter( e => /_default/.test(e)).join("\r\n").replace(/_default/g,"");
-  config = config.replace("[ subject ]", `[ subject ]\r\n${subjectText}`);
+  config = config.replace("[ subject ]", `[ subject ]\r\n${subjectText}\r\n`);
   try {
     writeFileSync( join(cwd, "tempConfig.cfg"), config);
   } catch (error) {
