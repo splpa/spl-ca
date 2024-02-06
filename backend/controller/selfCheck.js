@@ -2,7 +2,7 @@ const { KJUR, X509 } = require('jsrsasign');
 const { writeFileSync, readFileSync, existsSync, unlinkSync } = require('fs');
 const { convertTimestamp, cleanUp } = require('./tools');
 const { execSync } = require('child_process');
-const { join } = require('path');
+const { join, resolve } = require('path');
 e = {};
 e.certDue = (certStr) => {
     const cert = new X509();
