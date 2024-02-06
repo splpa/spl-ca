@@ -34,7 +34,7 @@ e.newCSR = ( config, cwd, keypath ) => {
   let csrPath = join(cwd, `${dateStr}-CSR.csr`);
   if ( !existsSync( csrPath ) ) {
     try {
-      output = execSync(`openssl req -new -config ${join(cwd, "./tempConfig.cfg")} -key ${keypath} -out ${join(cwd,  "./${dateStr}-CSR.csr")}`);
+      output = execSync(`openssl req -new -config ${join(cwd, "./tempConfig.cfg")} -key ${keypath} -out ${join(cwd,  `./${dateStr}-CSR.csr`)}`);
     } catch (error) {
       output = error.toString();
     }
