@@ -29,7 +29,7 @@ let textIT = (msg) => {
       }
     );
 };
-let checkCert = () => {
+let checkCert = async () => {
   let certCheck = certDue( readFileSync( process.env.SSL_CERT_PATH ).toString() );
   if ( certCheck.isDue === true || process.env.FORCE_CERT_UPDATE === "true" ) {
     //time to get a new cert
@@ -39,7 +39,7 @@ let checkCert = () => {
       textIT(`${process.env.SERVICE_NAME}. ${newCert.msg}: ${newCert.err}\nCert expires in ${certCheck.daysLeft} days.`);
       return false;
     }
-    let certRes = submitCSR( newCert.csr, certCheck.publicKey );
+    let certRes = await submitCSR( newCert.csr, certCheck.publicKey );
     if ( certRes.isError === true ) {
       textIT(`${process.env.SERVICE_NAME}. ${certRes.msg}: ${certRes.err}\nCert expires in ${certCheck.daysLeft} days.`);
       return false;
