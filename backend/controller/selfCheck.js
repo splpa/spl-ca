@@ -1,5 +1,5 @@
 const { KJUR, X509 } = require('jsrsasign');
-const { writeFileSync, readFileSync, existsSync } = require('fs');
+const { writeFileSync, readFileSync, existsSync, unlink, unlinkSync } = require('fs');
 const { execSync } = require('child_process');
 const { join } = require('path');
 e = {};
@@ -37,5 +37,26 @@ e.newCSR = ( config, cwd, keypath ) => {
     return {isError: true, msg:"CSR file was not written.", err: output};
   }
   return {isError: false, msg: output, csr: readFileSync(csrPath).toString()};
+}
+e.convertCRT = ( crtPath, pemPath ) => {
+  let command = `openssl x509 -inform der -in "${crtPath}" -out "${pemPath}"`;
+  let output = "";
+  if ( existsSync(pemPath) ) {
+    try {
+      unlinkSync(pemPath);
+    } catch (error) {
+      console.log("Could not delete existing PEM file: ", error.toString()); 
+      return {isError: true, msg: "Could not delete existing PEM file.", err: error.toString()};
+    }
+  }
+  try {
+    output = execSync(command);
+  } catch (error) {
+    output = error.toString();
+  }
+  if ( existsSync(pemPath) ) {
+    return {isError: false, msg: output};
+  }
+  return {isError: true, msg: `${pemPath} does not exist.`, err: output};
 }
 module.exports = e;

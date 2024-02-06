@@ -4,7 +4,7 @@ const express = require("express");
 const { readFileSync, writeFileSync } = require('fs');
 const http = require('http');
 const https = require('https');
-const { certDue, newCSR } = require('./backend/controller/selfCheck');
+const { certDue, newCSR, convertCRT } = require('./backend/controller/selfCheck');
 const { submitCSR } = require('./backend/spawn/spawn');
 const apiRoutes = require('./backend/routes/api');
 const { resolve } = require('path');
@@ -46,8 +46,11 @@ let checkCert = () => {
       return false;
     }
     //write new cert to file
-    let currentCertFile = resolve(`./certs/${process.env.SERVICE_NAME}.crt`)
+    let now = new Date();
+    let dateStr = `${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,"0")}${now.getDate().toString().padStart(2,"0")}`;
+    let currentCertFile = process.env.SSL_CERT_PATH
     let newCertStr = Buffer.from(certRes.b64Cert, "base64").toString();
+    let newCertFile = resolve(`./certs/new-${dateStr}-${process.env.SERVICE_NAME}.crt`)
     let oldCertFile = resolve(`./certs/expired-${certCheck.expires}-${process.env.SERVICE_NAME}.crt`)
     let oldCertStr = readFileSync(currentCertFile).toString();
     try {
@@ -57,9 +60,14 @@ let checkCert = () => {
       return false;
     }
     try {
-      writeFileSync(currentCertFile, newCertStr);
+      writeFileSync(newCertFile, newCertStr);
     } catch (error) {
       textIT(`${process.env.SERVICE_NAME}. Failed to create old cert file: ${error}\nCert expires in ${certCheck.daysLeft} days.`);
+      return false;
+    }
+    let convertRes = convertCRT(newCertFile, currentCertFile);
+    if (convertRes.isError === true) {
+      textIT(`${process.env.SERVICE_NAME}. ${convertRes.msg}: ${convertRes.err}\nCert expires in ${certCheck.daysLeft} days.`);
       return false;
     }
     return true;
