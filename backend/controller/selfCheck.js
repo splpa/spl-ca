@@ -2,7 +2,7 @@ const { KJUR, X509 } = require('jsrsasign');
 const { writeFileSync, readFileSync, existsSync, unlinkSync } = require('fs');
 const { convertTimestamp, cleanUp } = require('./tools');
 const { execSync } = require('child_process');
-const { join, resolve } = require('path');
+const { join } = require('path');
 e = {};
 e.certDue = (certStr) => {
     const cert = new X509();
@@ -34,7 +34,7 @@ e.newCSR = ( config, cwd, keypath ) => {
   let csrPath = join(cwd, `${dateStr}-CSR.csr`);
   if ( !existsSync( csrPath ) ) {
     try {
-      output = execSync(`openssl req -new -config ${resolve(cwd, "./tempConfig.cfg")} -key ${keypath} -out ${resolve(cwd,  "./${dateStr}-CSR.csr")}`);
+      output = execSync(`openssl req -new -config ${join(cwd, "./tempConfig.cfg")} -key ${keypath} -out ${join(cwd,  "./${dateStr}-CSR.csr")}`);
     } catch (error) {
       output = error.toString();
     }
