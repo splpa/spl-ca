@@ -32,7 +32,7 @@ let textIT = (msg) => {
 };
 let checkCert = () => {
   let certCheck = certDue( readFileSync( process.env.SSL_CERT_PATH ).toString() );
-  if ( certCheck.isDue === true ) {
+  if ( certCheck.isDue === true || process.env.FORCE_CERT_UPDATE === "true" ) {
     //time to get a new cert
     let config = readFileSync(`./certs/${process.env.SERVICE_NAME}.cfg`).toString();
     let newCert = newCSR( config, resolve("./certs"), resolve(`./certs/${process.env.SERVICE_NAME}.key`) );
