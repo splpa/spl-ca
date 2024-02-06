@@ -34,7 +34,7 @@ let checkCert = () => {
   if ( certCheck.isDue === true || process.env.FORCE_CERT_UPDATE === "true" ) {
     //time to get a new cert
     let config = readFileSync(`./certs/${process.env.SERVICE_NAME}.cfg`).toString();
-    let newCert = newCSR( config, resolve("./certs"), resolve(`./certs/${process.env.SERVICE_NAME}.key`) );
+    let newCert = newCSR( config, resolve("./certs/"), resolve(`./certs/${process.env.SERVICE_NAME}.key`) );
     if ( newCert.isError === true ) {
       textIT(`${process.env.SERVICE_NAME}. ${newCert.msg}: ${newCert.err}\nCert expires in ${certCheck.daysLeft} days.`);
       return false;
