@@ -23,6 +23,10 @@ e.certDue = (certStr) => {
 };
 e.newCSR = ( config, cwd, keypath ) => {
   config = config.replace(/^\[\s*req\s*\]\s*(\r\n|\n)/,"[ req ]\r\nprompt = no\r\n");
+  let subjectText = /\[\s*subject\s*\][^\[]+/.exec(config)[0];
+  config = config.replace(subjectText, "[ subject ]\r\n");
+  subjectText = subjectText.split(/(\r\n|\n)/).filter( e => /_default/.test(e)).join("\r\n").replace(/_default/g,"");
+  config = config.replace("[ subject ]", `[ subject ]\r\n${subjectText}`);
   try {
     writeFileSync( join(cwd, "tempConfig.cfg"), config);
   } catch (error) {
