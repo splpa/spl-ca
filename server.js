@@ -72,32 +72,8 @@ let checkCert = () => {
     }
     return true;
   }
-  console.log(`Cert is not due. Cert expires in ${certCheck.daysLeft} days.`);
+  console.log(`Cert is not due. Cert expires in ${certCheck.daysLeft} days on ${certCheck.expires}.`);
   return false;
-}
-testing:{
-//   const {X509, KJUR } = require("jsrsasign");
-//   const { submitCSR, retreiveCert } = require("./backend/spawn/spawn");
-//   import { writeFileSync } from 'fs';
-//   const certsRoot = "./";
-//   let csrText = readFileSync('./${process.env.SERVICE_NAME}.req').toString();
-//   let csr = new KJUR.asn1.csr.CSRUtil.getParam( csrText );
-//   let csrInfo = new KJUR.asn1.csr.CertificationRequest(csr);
-//   let csrPublicKey = csrInfo.params.sbjpubkey.replace(/(\r|\n|-+(BEGIN|END) PUBLIC KEY-+)/g,"");
-//   let certStr = readFileSync('./${process.env.SERVICE_NAME}.crt').toString();
-//   cert = new X509();
-//   cert.readCertPEM(certStr);
-//   let altNames = cert.getExtSubjectAltName().array.map( (e) => {return `${e.dns?`DNS: ${e.dns}`: `IP: ${e.ip}`}`}).join(", ");
-//   let subjectStr = cert.getSubjectString();
-//   let certPublicKey = Buffer.from(cert.getSPKI(), "hex").toString('base64');
-//   console.log("cert publicKey:", certPublicKey);
-//   console.log("csr PublicKey:", csrPublicKey);
-//   console.log("altNames:", altNames);
-//   console.log("subjectStr:", subjectStr);
-//   (async () => {
-//     console.log( await submitCSR(csrText,csrPublicKey,"test") );
-//   })()
-//   //process.exit(0);
 }
 
 if ( checkCert() === true ) {

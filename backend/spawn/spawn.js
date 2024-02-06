@@ -1,7 +1,7 @@
 const { spawn } = require('child_process');
 const { join } = require('path');
 const { createHash } = require('crypto');
-const { cleanUp } = require('../controller/cleanUp');
+const { cleanUp } = require('../controller/tools');
 const { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } = require('fs');
 const certsRoot = join("./", 'temp');
 let checkCertRoot = () => {

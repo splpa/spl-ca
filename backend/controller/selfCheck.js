@@ -1,5 +1,6 @@
 const { KJUR, X509 } = require('jsrsasign');
-const { writeFileSync, readFileSync, existsSync, unlink, unlinkSync } = require('fs');
+const { writeFileSync, readFileSync, existsSync, unlinkSync } = require('fs');
+const { convertTimestamp, cleanUp } = require('./tools');
 const { execSync } = require('child_process');
 const { join } = require('path');
 e = {};
@@ -7,13 +8,18 @@ e.certDue = (certStr) => {
     const cert = new X509();
     cert.readCertPEM(certStr);
     let oneDay = 24 * 60 * 60 * 1000;
-    let expires = new Date(cert.getNotAfter());
-    let delta = Math.round(Math.abs(expires.getTime() - (new Date()).getTime())/oneDay);
-    if ( delta < 14 ) {
-      let expireStr = `${expires.getFullYear()}-${(expires.getMonth()+1).toString().padStart(2,"0")}-${expires.getDate().toString().padStart(2,"0")}`;
-      return {isDue: true, daysLeft: delta, expires: expireStr, publicKey: Buffer.from(cert.getSPKI(), "hex").toString('base64')};
+    let notAfter = convertTimestamp(cert.getNotAfter());
+    if (notAfter.isError === true) {
+      return {isDue: false, msg: notAfter.msg};
     }
-    return {isDue: false};
+    let expires = notAfter.timestamp;
+    let delta = Math.round(Math.abs(expires.getTime() - (new Date()).getTime())/oneDay);
+    let publicKey = Buffer.from(cert.getSPKI(), "hex").toString('base64');
+    let expireStr = `${expires.getFullYear()}-${(expires.getMonth()+1).toString().padStart(2,"0")}-${expires.getDate().toString().padStart(2,"0")}`;
+    if ( delta < 14 ) {
+      return {isDue: true, daysLeft: delta, expires: expireStr, publicKey: publicKey};
+    }
+    return {isDue: false, daysLeft: delta, expires: expireStr, publicKey: publicKey};
 };
 e.newCSR = ( config, cwd, keypath ) => {
   config = config.replace(/^\[\s*req\s*\]\s*\n/,"[ req ]\nprompt = no\n");
@@ -42,11 +48,10 @@ e.convertCRT = ( crtPath, pemPath ) => {
   let command = `openssl x509 -inform der -in "${crtPath}" -out "${pemPath}"`;
   let output = "";
   if ( existsSync(pemPath) ) {
-    try {
-      unlinkSync(pemPath);
-    } catch (error) {
-      console.log("Could not delete existing PEM file: ", error.toString()); 
-      return {isError: true, msg: "Could not delete existing PEM file.", err: error.toString()};
+    let deleteRes = cleanUp(pemPath);
+    if ( deleteRes.isError === true ) {
+      console.log("Could not delete existing PEM file: ", deleteRes.err); 
+      return {isError: true, msg: "Could not delete existing PEM file.", err: deleteRes.err};
     }
   }
   try {

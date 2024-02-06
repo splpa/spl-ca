@@ -1,6 +1,7 @@
 const { KJUR, X509 } = require('jsrsasign');
 const { updateRecord, getRecord } = require('../sqlite/db');
 const { retrieveCert, submitCSR } = require('../spawn/spawn');
+const { convertTimestamp } = require('./tools');
 const oneDay = 1000 * 60 * 60 * 24;
 e = {};
 let markPending = async (record, eventId) => {
@@ -132,7 +133,12 @@ let validCSR = async (record, csr, eventId) => {
     let certAltNames = cert.getExtSubjectAltName().array.map( (e) => {return `${e.dns?`DNS: ${e.dns}`: `IP: ${e.ip}`}`}).join(", ");
     let certSubjectStr = cert.getSubjectString();
     let certPublicKey = Buffer.from(cert.getSPKI(), "hex").toString('base64');
-    let certDaysToExpire = Math.round(Math.abs(new Date(cert.getNotAfter()).getTime() - new Date().getTime()) / oneDay);
+    let notAfter = convertTimestamp(cert.getNotAfter());//YYMMDDHHMMSSZ OR YYYYMMDDHHMMSSZ
+    if ( notAfter.isError === true ) {
+      return {isValid:false, msg: "Could not verify expiration date. Admins will need to investigate", err: notAfter.err};
+    }
+    let expires = notAfter.timestamp;
+    let certDaysToExpire = Math.round(Math.abs( expires.getTime() - new Date().getTime()) / oneDay);
     if ( certDaysToExpire > 14 ) {
       return {isValid:false, msg: `Certificate is not near expiration, cert has ${certDaysToExpire} days left. Try again within 14 days of expiration.`};
     }
@@ -155,24 +161,3 @@ let validCSR = async (record, csr, eventId) => {
   return {isValid:true, msg: "CSR is valid."};
 }
 module.exports = e;
-
-
-
-// if ( certStr !== null ) {
-//   let cert = null;
-//   try {
-//     cert = new X509();
-//     cert.readCertPEM(certStr);
-//   } catch (error) {
-//     console.log(`${eventId}: Error reading cert for requestID ${record.requestID}, Error: ${error.toString()}.`);
-//     cleanUp(join(certsRoot, `${record.publicKey}.crt`));
-//   }
-// }
-// let cert = readFileSync(record.currentCert);
-// let certInfo = KJUR.asn1.x509.X509Util.getSubjectInfo(cert);
-// let certExpiry = new Date(certInfo.notAfter);
-// let now = new Date();
-// if ( certExpiry < now ) {
-//   console.log(`${eventId}: Cert for requestID ${record.requestID} has expired.`);
-//   return res.json({isError: true, msg: "Cert for this requestID has expired. Please request a new cert."});
-// }
