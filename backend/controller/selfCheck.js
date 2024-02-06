@@ -24,7 +24,7 @@ e.certDue = (certStr) => {
 e.newCSR = ( config, cwd, keypath ) => {
   config = config.replace(/^\[\s*req\s*\]\s*\n/,"[ req ]\nprompt = no\n");
   try {
-    writeFileSync( join(cwd, "tempConfig.cnf"), config);
+    writeFileSync( join(cwd, "tempConfig.cfg"), config);
   } catch (error) {
     return {isError: true, msg: "Could not write config file.", err: error.toString()};
   }
@@ -34,7 +34,7 @@ e.newCSR = ( config, cwd, keypath ) => {
   let csrPath = join(cwd, `${dateStr}-CSR.csr`);
   if ( !existsSync( csrPath ) ) {
     try {
-      output = execSync(`openssl req -new -config ./tempConfig.cnf -key ${keypath} -out ./${dateStr}-CSR.csr`, {cwd: cwd});
+      output = execSync(`openssl req -new -config ./tempConfig.cfg -key ${keypath} -out ./${dateStr}-CSR.csr`, {cwd: cwd});
     } catch (error) {
       output = error.toString();
     }
