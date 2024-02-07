@@ -32,7 +32,10 @@ let textIT = (msg) => {
 let checkCert = async () => {
   let certCheck = {isDue: true, daysLeft: 0, publicKey: "no cert"};
   if ( existsSync( process.env.SSL_CERT_PATH ) ) {
+    console.log("reading existing cert.");
     certCheck = await certDue( readFileSync( process.env.SSL_CERT_PATH ).toString() );
+  } else {
+    console.log("no existing cert. just creating a new one.");
   }
   if ( certCheck.isDue === true || process.env.FORCE_CERT_UPDATE === "true" ) {
     //time to get a new cert
