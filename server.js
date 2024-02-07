@@ -100,6 +100,10 @@ let checkCert = async () => {
     console.log("New certificate installed.");
   }
   console.log("Starting server...");
+  if ( !existsSync( process.env.SSL_CERT_PATH ) ) {
+    console.log("No SSL certificate found. Exiting.");
+    process.exit(1);
+  }
   const app = express();
   app.use(express.static("./public"));
   app.use(express.json());
@@ -113,10 +117,6 @@ let checkCert = async () => {
     key: readFileSync(process.env.SSL_KEY_PATH),
     cert: readFileSync(process.env.SSL_CERT_PATH)
   };
-  if ( !existsSync( process.env.SSL_CERT_PATH ) ) {
-    console.log("No SSL certificate found. Exiting.");
-    process.exit(1);
-  }
   // Create HTTPS server
   const httpsServer = https.createServer(httpsOptions, app);
 
