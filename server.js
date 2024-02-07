@@ -8,7 +8,6 @@ const { certDue, newCSR, convertCRT } = require('./backend/controller/selfCheck'
 const { submitCSR } = require('./backend/spawn/spawn');
 const apiRoutes = require('./backend/routes/api');
 const { resolve } = require('path');
-import { existsSync } from 'fs';
 const httpsPort = 443;
 const httpPort = 80;
 const required_env_vars = ["SSL_KEY_PATH", "SSL_CERT_PATH", "SERVICE_NAME", "TWILIO_PHONE_NUMBER", "IT_PHONE", "ACCOUNTSID", "AUTH_TOKEN"];
