@@ -64,6 +64,7 @@ let checkCert = async () => {
       textIT(`${process.env.SERVICE_NAME}. Failed to create old cert file: ${error}\nCert expires in ${certCheck.daysLeft} days.`);
       return false;
     }
+    console.log("is it getting this far?");
     let convertRes = convertCRT(newCertFile, currentCertFile);
     console.log(convertRes);
     if (convertRes.isError === true) {
