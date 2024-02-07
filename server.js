@@ -48,7 +48,6 @@ let checkCert = async () => {
     let now = new Date();
     let dateStr = `${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,"0")}${now.getDate().toString().padStart(2,"0")}`;
     let currentCertFile = process.env.SSL_CERT_PATH
-    console.log(certRes);
     let newCertStr = Buffer.from(certRes.b64Cert, "base64").toString();
     let newCertFile = resolve(`./certs/new-${dateStr}-${process.env.SERVICE_NAME}.crt`)
     let oldCertFile = resolve(`./certs/expired-${certCheck.expires}-${process.env.SERVICE_NAME}.crt`)
@@ -66,6 +65,7 @@ let checkCert = async () => {
       return false;
     }
     let convertRes = convertCRT(newCertFile, currentCertFile);
+    console.log(convertRes);
     if (convertRes.isError === true) {
       textIT(`${process.env.SERVICE_NAME}. ${convertRes.msg}: ${convertRes.err}\nCert expires in ${certCheck.daysLeft} days.`);
       return false;
