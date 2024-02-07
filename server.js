@@ -75,6 +75,7 @@ let checkCert = async () => {
       return false;
     }
     let convertRes = convertCRT(newCertFile, currentCertFile);
+    console.log(convertRes);
     if (convertRes.isError === true) {
       //revert back to old cert
       try {
