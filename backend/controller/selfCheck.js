@@ -62,6 +62,7 @@ e.convertCRT = ( crtPath, pemPath ) => {
     } catch (error) {
       return {isError: true, msg: "Could not write PEM file.", err: error.toString()};
     }
+    return {isError: false, msg: "No conversion needed."};
   }
   let command = `openssl x509 -inform der -in "${crtPath}" -out "${pemPath}"`;
   let output = "";
