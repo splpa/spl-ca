@@ -76,38 +76,41 @@ let checkCert = async () => {
   return false;
 }
 
-if ( checkCert() === true ) {
-  textIT(`${process.env.SERVICE_NAME}. New certificate installed.`);
-  console.log("New certificate installed.");
-}
+(async () => {
+  let checkRes = await checkCert();
+  if ( checkRes === true ) {
+    textIT(`${process.env.SERVICE_NAME}. New certificate installed.`);
+    console.log("New certificate installed.");
+  }
 
-const app = express();
-app.use(express.static("./public"));
-app.use(express.json());
-app.use('/api', apiRoutes); 
-app.get('/', (req, res) => {
-    return res.sendFile(__dirname + "/public/views/main.html");
-});
+  const app = express();
+  app.use(express.static("./public"));
+  app.use(express.json());
+  app.use('/api', apiRoutes); 
+  app.get('/', (req, res) => {
+      return res.sendFile(__dirname + "/public/views/main.html");
+  });
 
 
-const httpsOptions = {
-  key: readFileSync(process.env.SSL_KEY_PATH),
-  cert: readFileSync(process.env.SSL_CERT_PATH)
-};
+  const httpsOptions = {
+    key: readFileSync(process.env.SSL_KEY_PATH),
+    cert: readFileSync(process.env.SSL_CERT_PATH)
+  };
 
-// Create HTTPS server
-const httpsServer = https.createServer(httpsOptions, app);
+  // Create HTTPS server
+  const httpsServer = https.createServer(httpsOptions, app);
 
-httpsServer.listen(443, () => {
-  console.log(`HTTPS server listening on https://localhost:${httpsPort}`);
-});
+  httpsServer.listen(443, () => {
+    console.log(`HTTPS server listening on https://localhost:${httpsPort}`);
+  });
 
-// Create HTTP server for redirect
-const httpServer = http.createServer((req, res) => {
-  res.writeHead(301, { "Location": "https://" + req.headers['host'] + req.url });
-  res.end();
-});
+  // Create HTTP server for redirect
+  const httpServer = http.createServer((req, res) => {
+    res.writeHead(301, { "Location": "https://" + req.headers['host'] + req.url });
+    res.end();
+  });
 
-httpServer.listen(80, () => {
-  console.log(`HTTP server listening on http://localhost:${httpPort} for redirects`);
-});
+  httpServer.listen(80, () => {
+    console.log(`HTTP server listening on http://localhost:${httpPort} for redirects`);
+  });
+})()
