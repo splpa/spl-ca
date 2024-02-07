@@ -25,7 +25,7 @@
             <h2>API Endpoints</h2>
             <ul>
               <li>
-                <strong>POST:</strong> <a href="/api/renew">/api/renew</a> - This endpoint will renew the certificate for the current node.
+                <strong>POST:</strong> <a href="/">/api/renew</a> - This endpoint will renew the certificate for the current node.
                 <p>
                     <strong>Requirements:</strong>
                 </p>
@@ -42,7 +42,7 @@
                     <p>The CSR request must meet these requirements:</p>
                     <ul>
                       <li>
-                        <strong>A</strong> - The CSR must expire within 7 days of the request.
+                        <strong>A</strong> - The current certificate must expire within 14 days of the request.
                       </li>
                       <li>
                         <strong>B</strong> - Both the common name and the subject alternatives must be the same as configured with the PA Certificate Authority.
@@ -54,6 +54,9 @@
                         <strong>D</strong> - The request must be from the same CN host.
                       </li>
                     </ul>
+                  </li>
+                  <li>
+                    <p>If there is any descripency in the request admin will have to <strong>manually</strong> approve on the server.</p>
                   </li>
                 </ol>
               </li>

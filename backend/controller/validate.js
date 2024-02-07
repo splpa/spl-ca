@@ -1,6 +1,6 @@
 const { KJUR, X509 } = require('jsrsasign');
 const { updateRecord, getRecord } = require('../sqlite/db');
-const { retrieveCert, submitCSR } = require('../spawn/spawn');
+const { retrieveCert, submitCSR } = require('./spawn');
 const { convertTimestamp } = require('./tools');
 const oneDay = 1000 * 60 * 60 * 24;
 e = {};
