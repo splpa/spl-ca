@@ -31,14 +31,17 @@ let textIT = (msg) => {
 };
 let checkCert = async () => {
   let certCheck = {isDue: true, daysLeft: 0, publicKey: "no cert"};
+  let oldCertStr = "";
   if ( existsSync( process.env.SSL_CERT_PATH ) ) {
     console.log("reading existing cert.");
-    certCheck = await certDue( readFileSync( process.env.SSL_CERT_PATH ).toString() );
+    oldCertStr = readFileSync(currentCertFile).toString();
+    certCheck = await certDue( oldCertStr );
   } else {
     console.log("no existing cert. just creating a new one.");
   }
   if ( certCheck.isDue === true || process.env.FORCE_CERT_UPDATE === "true" ) {
     //time to get a new cert
+    console.log("Reading config file for csr.");
     let config = readFileSync(`./certs/${process.env.SERVICE_NAME}.cfg`).toString();
     let newCert = newCSR( config, resolve("./certs/"), resolve(`./certs/${process.env.SERVICE_NAME}.key`) );
     if ( newCert.isError === true ) {
@@ -57,12 +60,13 @@ let checkCert = async () => {
     let newCertStr = Buffer.from(certRes.b64Cert, "base64").toString();
     let newCertFile = resolve(`./certs/new-${dateStr}-${process.env.SERVICE_NAME}.crt`)
     let oldCertFile = resolve(`./certs/expired-${certCheck.expires}-${process.env.SERVICE_NAME}.crt`)
-    let oldCertStr = readFileSync(currentCertFile).toString();
-    try {
-      writeFileSync(oldCertFile, oldCertStr);
-    } catch (error) {
-      textIT(`${process.env.SERVICE_NAME}. Failed to create old cert file: ${error}\nCert expires in ${certCheck.daysLeft} days.`);
-      return false;
+    if ( oldCertStr != "" ) {
+      try {
+        writeFileSync(oldCertFile, oldCertStr);
+      } catch (error) {
+        textIT(`${process.env.SERVICE_NAME}. Failed to create old cert file: ${error}\nCert expires in ${certCheck.daysLeft} days.`);
+        return false;
+      }
     }
     try {
       writeFileSync(newCertFile, newCertStr);
