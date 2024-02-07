@@ -74,10 +74,16 @@ let checkCert = async () => {
       textIT(`${process.env.SERVICE_NAME}. Failed to create old cert file: ${error}\nCert expires in ${certCheck.daysLeft} days.`);
       return false;
     }
-    console.log("is it getting this far?");
     let convertRes = convertCRT(newCertFile, currentCertFile);
-    console.log(convertRes);
     if (convertRes.isError === true) {
+      //revert back to old cert
+      try {
+        if (existsSync(oldCertFile)) {
+          writeFileSync(currentCertFile, oldCertStr);
+        }
+      } catch (error) {
+        textIT(`${process.env.SERVICE_NAME}. Failed to revert back to old cert: ${error}\nSERVICE IS DOWN!`);
+      }
       textIT(`${process.env.SERVICE_NAME}. ${convertRes.msg}: ${convertRes.err}\nCert expires in ${certCheck.daysLeft} days.`);
       return false;
     }
@@ -107,7 +113,10 @@ let checkCert = async () => {
     key: readFileSync(process.env.SSL_KEY_PATH),
     cert: readFileSync(process.env.SSL_CERT_PATH)
   };
-
+  if ( !existsSync( process.env.SSL_CERT_PATH ) ) {
+    console.log("No SSL certificate found. Exiting.");
+    process.exit(1);
+  }
   // Create HTTPS server
   const httpsServer = https.createServer(httpsOptions, app);
 

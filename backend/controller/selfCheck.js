@@ -49,6 +49,20 @@ e.newCSR = ( config, cwd, keypath ) => {
   return {isError: false, msg: output, csr: readFileSync(csrPath).toString()};
 }
 e.convertCRT = ( crtPath, pemPath ) => {
+  let crtStr = "";
+  try {
+    crtStr = readFileSync(crtPath).toString();
+  } catch (error) {
+    return {isError: true, msg: "Could not read CERT file.", err: error.toString()};
+  }
+  if ( /^-+BEGIN CERTIFICATE/.test(crtStr)  ) {
+    //no converstion needed.
+    try {
+      writeFileSync(pemPath, crtStr);
+    } catch (error) {
+      return {isError: true, msg: "Could not write PEM file.", err: error.toString()};
+    }
+  }
   let command = `openssl x509 -inform der -in "${crtPath}" -out "${pemPath}"`;
   let output = "";
   if ( existsSync(pemPath) ) {
