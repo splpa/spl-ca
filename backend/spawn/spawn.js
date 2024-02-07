@@ -39,8 +39,8 @@ let spawnAsync = async (command, args) => {
     });
   });
 }
-e.retrieveCert = async (requestId, publicKey) => {
-  let certPath = join(certsRoot, `${createHash("sha256").update(publicKey).digest('hex')}.rsp`);
+e.retrieveCert = async (requestId, fileName) => {
+  let certPath = join(certsRoot, `${fileName}.rsp`);
   if (existsSync (certPath) ) {
     try {
       unlinkSync(certPath);
@@ -74,8 +74,8 @@ e.retrieveCert = async (requestId, publicKey) => {
   return {isError: true, msg: "Failed to retrieve certificate.", err: retrieveRes.toString()};
 }
 
-e.submitCSR = async (csrText, publicKey)=> {
-  let reqPath = join(certsRoot, `${createHash("sha256").update(publicKey).digest('hex')}.req`);
+e.submitCSR = async (csrText, fileName)=> {
+  let reqPath = join(certsRoot, `${fileName}.req`);
   if ( existsSync( reqPath ) ) {
     let cleanUpRes = cleanUp(reqPath);
     if ( cleanUpRes.isError === true ) {
@@ -101,7 +101,7 @@ e.submitCSR = async (csrText, publicKey)=> {
     await cleanUp(reqPath);
     if ( submitRes.includes("Certificate request is pending") === true && /RequestId: \d+/.test(submitRes) == true ) {
       let requestId = Number(submitRes.match(/(?<=RequestId: )\d+/)[0]);
-      let signed = await signCert(requestId, publicKey);
+      let signed = await signCert(requestId, fileName);
       if (signed.isError === false) {
         return {isError: false, msg: "Certificate signed.", b64Cert: signed.b64Cert, requestId: requestId}; 
       }
@@ -112,7 +112,7 @@ e.submitCSR = async (csrText, publicKey)=> {
   return {isError: true, msg: "CSR file did not exist."};
 }
 
-let signCert = async (requestId, publicKey) => {
+let signCert = async (requestId, fileName) => {
   let signRes = "";
   try {
     signRes = await spawnAsync("certutil", [ "-config", "SPLROOTCA\\PathologyAssociates-SPLROOTCA-CA", "-resubmit", requestId]);  
@@ -122,7 +122,7 @@ let signCert = async (requestId, publicKey) => {
   if ( signRes.includes("Certificate issued.") ) {
     let certRetrived = "";
     try {
-      certRetrived = await e.retrieveCert(requestId, publicKey);  
+      certRetrived = await e.retrieveCert(requestId, fileName);  
     } catch (error) {
       return {isError: true, msg: "Error retrieving certificate", err: error.toString()};
     }

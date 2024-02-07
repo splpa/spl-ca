@@ -1,13 +1,14 @@
 require('dotenv').config();
 const client = require('twilio')(process.env.ACCOUNTSID, process.env.AUTH_TOKEN);
 const express = require("express");
-const { readFileSync, writeFileSync } = require('fs');
+const { readFileSync, writeFileSync, existsSync } = require('fs');
 const http = require('http');
 const https = require('https');
 const { certDue, newCSR, convertCRT } = require('./backend/controller/selfCheck');
 const { submitCSR } = require('./backend/spawn/spawn');
 const apiRoutes = require('./backend/routes/api');
 const { resolve } = require('path');
+import { existsSync } from 'fs';
 const httpsPort = 443;
 const httpPort = 80;
 const required_env_vars = ["SSL_KEY_PATH", "SSL_CERT_PATH", "SERVICE_NAME", "TWILIO_PHONE_NUMBER", "IT_PHONE", "ACCOUNTSID", "AUTH_TOKEN"];
@@ -30,7 +31,10 @@ let textIT = (msg) => {
     );
 };
 let checkCert = async () => {
-  let certCheck = certDue( readFileSync( process.env.SSL_CERT_PATH ).toString() );
+  let certCheck = {isDue: true, daysLeft: 0, publicKey: "no cert"};
+  if ( existsSync( process.env.SSL_CERT_PATH ) ) {
+    certCheck = await certDue( readFileSync( process.env.SSL_CERT_PATH ).toString() );
+  }
   if ( certCheck.isDue === true || process.env.FORCE_CERT_UPDATE === "true" ) {
     //time to get a new cert
     let config = readFileSync(`./certs/${process.env.SERVICE_NAME}.cfg`).toString();

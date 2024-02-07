@@ -4,7 +4,7 @@ const { convertTimestamp, cleanUp } = require('./tools');
 const { execSync } = require('child_process');
 const { join } = require('path');
 e = {};
-e.certDue = (certStr) => {
+e.certDue = async (certStr) => {
     const cert = new X509();
     cert.readCertPEM(certStr);
     let oneDay = 24 * 60 * 60 * 1000;

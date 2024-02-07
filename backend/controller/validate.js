@@ -54,13 +54,13 @@ e.validate = async (req, res, csrText, eventId) => {
       return res.json({isError: true, msg: "CSR altNames does not match approved altNames for this key. Revert to previous configuration or have admin approve new altNames then try again."})
     }    
     console.log(`${eventId}: CSR is valid a format.`);
-    let csrCheck = await validCSR( match, csr, eventId );
+    let csrCheck = await validCSR( match, eventId );
     if ( csrCheck.isValid === false ) {
       markPending(match, eventId);
       return res.json({isError: true, msg: csrCheck.msg});
     }
     //time to submit the CSR
-    let csrRes = await submitCSR(csrText, publicKey);
+    let csrRes = await submitCSR(csrText, createHash("sha256").update(publicKey).digest('hex'));
     if ( csrRes.isError === true ) {
       if (csrRes.requestId) match.requestID = csrRes.requestId;
       markPending(match, eventId);
@@ -101,13 +101,13 @@ e.validate = async (req, res, csrText, eventId) => {
   }
 }
 
-let validCSR = async (record, csr, eventId) => {
+let validCSR = async (record, eventId) => {
   let certStr = null;
   let cert = null;
   if ( record.requestID > 0 && record.currentCert !== "" ) {
     console.log(`${eventId}: Checking with CA for cert for requestID ${record.requestID} to verify cert expiration.`);
     //first check if cert already exists
-    let certRes = await retrieveCert(record.requestID, record.publicKey, eventId);
+    let certRes = await retrieveCert(record.requestID, createHash("sha256").update(record.publicKey).digest('hex'), eventId);
     if ( certRes.isError ){
       return { isValid:false, msg: certRes.msg }
     }
