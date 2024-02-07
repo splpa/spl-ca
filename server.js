@@ -83,7 +83,7 @@ let checkCert = async () => {
     textIT(`${process.env.SERVICE_NAME}. New certificate installed.`);
     console.log("New certificate installed.");
   }
-
+  console.log("Starting server...");
   const app = express();
   app.use(express.static("./public"));
   app.use(express.json());
