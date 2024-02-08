@@ -1,5 +1,6 @@
 require('dotenv').config();
 const client = require('twilio')(process.env.ACCOUNTSID, process.env.AUTH_TOKEN);
+const { createHash } = require('crypto');
 const express = require("express");
 const { readFileSync, writeFileSync, existsSync } = require('fs');
 const http = require('http');
@@ -76,7 +77,7 @@ let checkCert = async () => {
       await textIT(`${process.env.SERVICE_NAME.toUpperCase()}:\n${newCert.msg}: ${newCert.err}\nCert expires in ${certCheck.daysLeft} days.`);
       return false;
     }
-    let certRes = await submitCSR( newCert.csr, certCheck.publicKey );
+    let certRes = await submitCSR( newCert.csr, createHash("sha256").update(certCheck.publicKey).digest('hex') );
     if ( certRes.isError === true ) {
       await textIT(`${process.env.SERVICE_NAME.toUpperCase()}:\n${certRes.msg}: ${certRes.err}\nCert expires in ${certCheck.daysLeft} days.`);
       return false;
