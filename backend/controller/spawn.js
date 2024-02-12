@@ -111,7 +111,9 @@ e.submitCSR = async (csrText, fileName)=> {
   }
   return {isError: true, msg: "CSR file did not exist."};
 }
-
+e.verifySignature = async (csrText)=> {
+  
+}
 let signCert = async (requestId, fileName) => {
   let signRes = "";
   try {

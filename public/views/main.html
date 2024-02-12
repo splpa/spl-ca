@@ -60,6 +60,26 @@
                   </li>
                 </ol>
               </li>
+              <br>
+              <li>
+                <strong>POST:</strong> <a href="/">/api/register</a> - This endpoint will register a certificate, which will have to be accepted by admins to enable renew.
+                <p>
+                  <strong>Requirements:</strong>
+                </p>
+                <ol>
+                  <li>
+                    <p>The request must send a JSON object in the body with the following properties:</p>
+                  </li>
+                  <ul>
+                    <li>
+                      <strong>b64Cert</strong>: base64 encoded string of the PEM certificate. 
+                    </li>
+                    <li>
+                      <strong>b64Sig</strong>:  b64Sig is the base64 encoded signature of the certificate
+                    </li>
+                  </ul>
+                </ol>
+              </li>
             </ul>
         </div>
     </div>

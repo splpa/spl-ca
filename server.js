@@ -1,10 +1,10 @@
 require('dotenv').config();
-const client = require('twilio')(process.env.ACCOUNTSID, process.env.AUTH_TOKEN);
 const { createHash } = require('crypto');
 const express = require("express");
 const { readFileSync, writeFileSync, existsSync } = require('fs');
 const http = require('http');
 const https = require('https');
+const { textIT } = require('./backend/controller/textIT');
 const { certDue, newCSR, convertCRT } = require('./backend/controller/selfCheck');
 const { submitCSR } = require('./backend/controller/spawn');
 const apiRoutes = require('./backend/routes/api');
@@ -14,6 +14,28 @@ const httpPort = 80;
 const required_env_vars = ["SSL_KEY_PATH", "SSL_CERT_PATH", "SERVICE_NAME", "TWILIO_PHONE_NUMBER", "IT_PHONE", "ACCOUNTSID", "AUTH_TOKEN"];
 if ( process.send === undefined ) {
   process.send = (msg) => {console.log(`App not launched by PM2, so not sending "${msg}" signal.`)};
+}
+let returnCert = (req, res, certType) => {
+  switch (certType) {
+    case "pem":
+      if ( !existsSync( process.env.SSL_CA_PEM_PATH ) ) {
+        console.log(process.env)
+        textIT(`${process.env.SERVICE_NAME.toUpperCase()}:\n pem file doesn't not exist ${process.SSL_CA_PEM_PATH}.`);
+        return res.json({isError: true, msg: "CA.pem not found"});
+      }
+      return res.sendFile(process.env.SSL_CA_PEM_PATH);
+    case "cer":
+    case "crt":
+    case "der":
+      if ( !existsSync( process.env.SSL_CA_CER_PATH ) ) {
+        textIT(`${process.env.SERVICE_NAME.toUpperCase()}:\n cer file doesn't not exist ${process.SSL_CA_CER_PATH}.`);
+        return res.json({isError: true, msg: "CA.cer not found"});
+      }
+      return res.sendFile(process.env.SSL_CA_CER_PATH);
+    default:
+      textIT(`${process.env.SERVICE_NAME.toUpperCase()}:\n Invalid cert type ${certType}.\nRequest from ${req.ip.replace("::ffff:", "")} ${req.headers['user-agent']}`);
+      return res.json({isError: true, msg: "Invalid cert type"});
+  }
 }
 let startfail = () => {
   process.send("ready");
@@ -29,25 +51,6 @@ required_env_vars.forEach( (e) => {
     missing.push(e);
   }
 });
-let textIT = async (msg) => {
-  console.log(`Texting IT: "${msg}"`);
-  let twilioRes = {};
-  try {
-    twilioRes = await client.messages.create({
-      body: msg,
-      from: process.env.TWILIO_PHONE_NUMBER,
-      to: process.env.IT_PHONE
-    });
-  } catch (error) {
-    twilioRes = {isError: true, err: error.toString()};
-  }
-  if (twilioRes.isError === true) {
-    console.log( `Text failed: ${ JSON.stringify(twilioRes) }` );
-  } else {
-    console.log( `Text Sent: ${twilioRes.sid}` );
-  }
-  return true;
-}
 let checkCert = async () => {
   let currentCertFile = process.env.SSL_CERT_PATH
   let certCheck = {isDue: true, daysLeft: 0, publicKey: "no cert"};
@@ -154,6 +157,10 @@ let checkCert = async () => {
     app.use('/api', apiRoutes); 
     app.get('/', (req, res) => {
         return res.sendFile(__dirname + "/public/views/main.html");
+    });
+    app.get(/\/CA\.[a-z]*/, async (req, res) => {
+      let ext = req.url.replace("/CA.", "");
+      return await returnCert(req, res, ext);
     });
     // Create HTTP server for redirect
     const httpServer = http.createServer((req, res) => {
