@@ -38,7 +38,7 @@ router.post("/register", async (req, res) => {
     return res.json({isError: true, msg: "Missing b64Sig body property."})
   }
   let b64Cert = req.body.b64Cert.toString().trim();
-  if ( b64Cert.length < 100 || b64Cert.length > 2000 ){
+  if ( b64Cert.length < 100 || b64Cert.length > 10000 ){
     console.log(`${eventId}: Register request is of an invalid b64Cert length ${b64Cert.length}`);
     return res.json({isError: true, msg: "Invalid b64Cert length."});
   }
@@ -47,7 +47,7 @@ router.post("/register", async (req, res) => {
     return res.json({isError: true, msg: "Invalid base64 string for b64Cert."});
   }
   let b64Sig = req.body.b64Sig.toString().trim();
-  if ( b64Sig.length < 100 || b64Sig.length > 2000 ){
+  if ( b64Sig.length < 100 || b64Sig.length > 10000 ){
     console.log(`${eventId}: Register request is of an invalid b64Sig length ${b64Sig.length}`);
     return res.json({isError: true, msg: "Invalid b64Sig length."});
   }
