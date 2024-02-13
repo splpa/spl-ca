@@ -42,7 +42,7 @@ router.post("/register", async (req, res) => {
     console.log(`${eventId}: Register request is of an invalid b64Cert length ${b64Cert.length}`);
     return res.json({isError: true, msg: "Invalid b64Cert length."});
   }
-  if ( !/^(?:[A-Za-z0-9+\/]{4})*(?:[A-Za-z0-9+\/]{2}==|[A-Za-z0-9+\/]{3}=)?$/.test(reqData) ) {
+  if ( !/^(?:[A-Za-z0-9+\/]{4})*(?:[A-Za-z0-9+\/]{2}==|[A-Za-z0-9+\/]{3}=)?$/.test(b64Cert) ) {
     console.log(`${eventId}: Register request b64Cert is not a valid base64 string.`);
     return res.json({isError: true, msg: "Invalid base64 string for b64Cert."});
   }
@@ -51,7 +51,7 @@ router.post("/register", async (req, res) => {
     console.log(`${eventId}: Register request is of an invalid b64Sig length ${b64Sig.length}`);
     return res.json({isError: true, msg: "Invalid b64Sig length."});
   }
-  if ( !/^(?:[A-Za-z0-9+\/]{4})*(?:[A-Za-z0-9+\/]{2}==|[A-Za-z0-9+\/]{3}=)?$/.test(reqData) ) {
+  if ( !/^(?:[A-Za-z0-9+\/]{4})*(?:[A-Za-z0-9+\/]{2}==|[A-Za-z0-9+\/]{3}=)?$/.test(b64Sig) ) {
     console.log(`${eventId}: Register request b64Sig is not a valid base64 string.`);
     return res.json({isError: true, msg: "Invalid base64 string for b64Sig."});
   }
