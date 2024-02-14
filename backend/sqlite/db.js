@@ -20,6 +20,7 @@ initalizeDB = async () => {
       altNames TEXT,
       updateAltNames TEXT,
       approveAll TEXT,
+      pemCert TEXT,
       logs TEXT
     );`).run();
   }
@@ -143,4 +144,9 @@ e.updateRecord = async (record, eventId) => {
     );
   }
 }
+
+e.registerCert((certData) => {
+
+};
+
 module.exports = e;

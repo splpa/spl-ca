@@ -1,7 +1,8 @@
-const { KJUR, X509 } = require('jsrsasign');
+const { KJUR, X509, KEYUTIL, pemtohex } = require('jsrsasign');
 const { updateRecord, getRecord } = require('../sqlite/db');
 const { retrieveCert, submitCSR } = require('./spawn');
 const { convertTimestamp } = require('./tools');
+const { readFileSync } = require('fs');
 const oneDay = 1000 * 60 * 60 * 24;
 e = {};
 let markPending = async (record, eventId) => {
@@ -77,6 +78,39 @@ let validCSR = async (record, eventId) => {
     }
   }
   return {isValid:true, msg: "CSR is valid."};
+}
+let extractCertData = (cert) => {
+  let certAltNames = cert.getExtSubjectAltName().array.map( (e) => {return `${e.dns?`DNS: ${e.dns}`: `IP: ${e.ip}`}`}).join(", ");
+  let certSubjectStr = cert.getSubjectString();
+  let certPublicKey = Buffer.from(cert.getSPKI(), "hex").toString('base64');
+  let notAfter = convertTimestamp(cert.getNotAfter());//YYMMDDHHMMSSZ OR YYYYMMDDHHMMSSZ
+  if ( notAfter.isError === true ) {
+    return {isError:true, msg: "Could not verify expiration date", err: notAfter.err};
+  }
+  let expires = notAfter.timestamp;
+  let certDaysToExpire = Math.round(Math.abs( expires.getTime() - new Date().getTime()) / oneDay);
+  return {isError:false, certAltNames:certAltNames, certSubjectStr:certSubjectStr, certPublicKey:certPublicKey, expires:expires, certDaysToExpire:certDaysToExpire};
+
+}
+let extractAndValidateCert = (clientCertText) => {
+  let cert = new X509();
+  try {
+    cert.readCertPEM(clientCertText);
+  } catch (error) {
+    return {isError: true, msg: "Failed to parse cert", err: error.toString()};
+  }
+  let publicKey = Buffer.from(cert.getSPKI(), 'hex').toString('base64');
+  let certValid = false;
+  try { 
+    let sig2 = new KJUR.crypto.ECDSA();
+    sig2.setPublicKeyHex(cert.getSPKIHex());
+    //sig2.init(clientCertText);
+    sig2.updateString(Buffer.from(clientCertText));
+    certValid = sig.verify(sigValueHex);
+  } catch (error) {
+    return {isError: true, msg: "Error Verifying Signature", err: error.toString()};
+  }
+  return {isError: false, certValid:certValid, publicKey:publicKey, cert: cert};
 }
 e.renew = async (req, res, csrText, eventId) => {
   if (KJUR.asn1.csr.CSRUtil.verifySignature( csrText ) !== true ) {
@@ -160,6 +194,46 @@ e.renew = async (req, res, csrText, eventId) => {
   }
 }
 e.register = async (b64Cert, b64Sig, res, eventId) => {
+  let ogCertStr = Buffer.from(b64Cert, "base64").toString();
+  let signedCertStr = Buffer.from(b64Sig, "base64").toString();
+  let ogCert = extractAndValidateCert(ogCertStr);
+  let signedCert = extractAndValidateCert(signedCertStr);
+  // console.log("ogCertStr:", ogCertStr);
+  console.log("signedCertStr:", signedCertStr);
+  // console.log("OG:", ogCert);
+  console.log("sig:", signedCert);
   return res.json({isError: false, msg: "Route is not configured yet."});
 };
+e.registerTest = async (req, res) => {
+  console.log(Object.keys(req.body));
+  let clientCert = new X509();
+  let clientCertText = req.body.pemCert;
+  try {
+    clientCert.readCertPEM(clientCertText);
+  } catch (error) {
+    return res.json({isError: true, msg: "Failed to parse cert", err: error.toString()});
+  }
+  let clientSignatureHex = req.body.signatureHex;
+  let clientPublicKey = KEYUTIL.getKey(clientCert.getPublicKey());
+  let sigVerify = new KJUR.crypto.Signature({"alg": "SHA256withECDSA"});
+  sigVerify.init(clientPublicKey);
+  sigVerify.updateString(clientCertText);
+  let isClientSigned = sigVerify.verify(clientSignatureHex); // Returns true if valid
+  let CACertText = ""; 
+  try {
+    CACertText = readFileSync(process.env.SSL_CA_PEM_PATH).toString();
+  } catch (error) {
+    return res.json({isError: true, msg: "Failed to read CA cert", err: error.toString()});
+  }
+  let CAPublicKey = KEYUTIL.getKey(CACertText);
+  let CACert = new X509();
+  CACert.readCertPEM(CACertText);
+  let isCAIssued = CACert.verifySignature(CAPublicKey);
+  if (isCAIssued === true && isClientSigned === true) {
+
+    return res.json({isError: false, msg: "Certificate is valid and will be registered."});
+  }
+  return res.json({isError: false, msg: "Invalid certificate"});
+};
 module.exports = e;
+

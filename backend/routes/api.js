@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { renew, register } = require('../controller/validate');
+const { renew, register, registerTest } = require('../controller/ca-tools');
 const router = Router();
 const { randomUUID } = require('crypto');
 
@@ -27,6 +27,7 @@ router.post('/renew', async (req, res) => {
   return res.json({isError: true, msg: "Invalid cert request..."});
 });
 router.post("/register", async (req, res) => {
+  return await registerTest(req,res);
   let eventId = randomUUID();
   console.log(`${eventId}: Register request from ${req.ip.replace("::ffff:", "")}`);
   if (!req.body.b64Cert){
