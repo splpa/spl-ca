@@ -1,5 +1,5 @@
 const { KJUR, X509, KEYUTIL, pemtohex } = require('jsrsasign');
-const { updateRecord, getRecord } = require('../sqlite/db');
+const { updateRecord, getRecord, registerCert } = require('../sqlite/db');
 const { retrieveCert, submitCSR } = require('./spawn');
 const { convertTimestamp } = require('./tools');
 const { readFileSync } = require('fs');
@@ -80,17 +80,17 @@ let validCSR = async (record, eventId) => {
   return {isValid:true, msg: "CSR is valid."};
 }
 let extractCertData = (cert) => {
-  let certAltNames = cert.getExtSubjectAltName().array.map( (e) => {return `${e.dns?`DNS: ${e.dns}`: `IP: ${e.ip}`}`}).join(", ");
-  let certSubjectStr = cert.getSubjectString();
-  let certPublicKey = Buffer.from(cert.getSPKI(), "hex").toString('base64');
-  let notAfter = convertTimestamp(cert.getNotAfter());//YYMMDDHHMMSSZ OR YYYYMMDDHHMMSSZ
-  if ( notAfter.isError === true ) {
-    return {isError:true, msg: "Could not verify expiration date", err: notAfter.err};
+  try {
+    let altNames = cert.getExtSubjectAltName().array.map( (e) => {return `${e.dns?`DNS: ${e.dns}`: `IP: ${e.ip}`}`}).join(", ");
+    let subjectStr = cert.getSubjectString();
+    let publicKey = Buffer.from(cert.getSPKI(), "hex").toString('base64');
+    let notAfter = convertTimestamp(cert.getNotAfter());//YYMMDDHHMMSSZ OR YYYYMMDDHHMMSSZ
+    let expires = notAfter.timestamp;
+    let certDaysToExpire = Math.round(Math.abs( expires.getTime() - new Date().getTime()) / oneDay);
+    return {isError:false, altNames:altNames, subjectStr:subjectStr, publicKey:publicKey, expires:expires, certDaysToExpire:certDaysToExpire};
+  } catch (error) {
+    return {isError: true, msg: "Error extracting data cert.", err: error.toString()};
   }
-  let expires = notAfter.timestamp;
-  let certDaysToExpire = Math.round(Math.abs( expires.getTime() - new Date().getTime()) / oneDay);
-  return {isError:false, certAltNames:certAltNames, certSubjectStr:certSubjectStr, certPublicKey:certPublicKey, expires:expires, certDaysToExpire:certDaysToExpire};
-
 }
 let extractAndValidateCert = (clientCertText) => {
   let cert = new X509();
@@ -230,7 +230,17 @@ e.registerTest = async (req, res) => {
   CACert.readCertPEM(CACertText);
   let isCAIssued = CACert.verifySignature(CAPublicKey);
   if (isCAIssued === true && isClientSigned === true) {
-
+    let clientCertData = extractCertData(clientCert);
+    if (clientCertData.isError === true) {
+      console.log("Error extracting data from client cert", clientCertData.err);
+      return res.json({isError: true, msg: "Error extracting data from client cert"});
+    }
+    clientCertData.createdIP = req.ip.replace("::ffff:", "");
+    clientCertData.created = new Date();
+    clientCertData.createdTimestamp = `${clientCertData.created.toLocaleDateString()} ${clientCertData.created.toLocaleTimeString().replace(/:\d{2} /g, "")}`;
+    clientCertData.logs = [req.body.eventId];
+    clientCertData.pemCert = clientCertText;
+    let clientCertRegRes = registerCert(clientCertData);
     return res.json({isError: false, msg: "Certificate is valid and will be registered."});
   }
   return res.json({isError: false, msg: "Invalid certificate"});
