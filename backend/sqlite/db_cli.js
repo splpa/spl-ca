@@ -87,8 +87,8 @@ let mainMenu = () => {
   console.log("-- Main Menu --");
   console.log("   1 - List pending requests");
   console.log("   2 - Update/Approve pending requests");
-  console.log("   3 - Accept inactive requests");
-  console.log("   4 - Set active/inactive record");
+  console.log("   3 - Activate records");
+  console.log("   4 - Deactivate records");
   console.log("   5 - List all records");
   console.log("   6 - Update any record");
   console.log("   7 - Exit");
@@ -127,32 +127,49 @@ let mainMenu = () => {
         }
         break;
       }
-      case "3":{
+      case "3":{//activate
         console.clear();
-        let inactive = await getInactive();
+        let inactive = await getRecords("active", "false");
         if (inactive.data.length === 0) {
           console.log("No inactive requests.");
         } else {
-          display(inactive.data);
+          display(inactive.data, true);
+          let userRec = parseInt(await readInput("Enter # of record to activate: "));
+          if ( userRec >=1 && userRec <= inactive.data.length ) {
+            let rec = inactive.data[userRec-1];
+            let comfirm = (await readInput(`Do you want to activate this publicKey "${rec.publicKey.substring(0,pubKeyDisp)}" (y/n)?: `)).toUpperCase().trim();
+            if ( comfirm === "Y" ) {
+              let res = await setRecord(rec.publicKey, "active", "true");
+              if ( res.data.changes === 1 ) {
+                console.log(`Record activated.`);
+                display( (await getRecords("publicKey", rec.publicKey)).data );
+              } else {
+                console.log("Error updating record.");
+              }
+            } else  {
+              console.log("Record not modified.");
+            }
+          } else {
+            console.log("Invalid record entry.");
+          }
         }
       break;
       }
-      case "4":{
+      case "4":{//deactivate
         console.clear();
-        let all = await getAll();
-        if (all.data.length === 0) {
+        let active = await getRecords("active", "true");
+        if (active.data.length === 0) {
           console.log("No records.");
         } else {
-          display(all.data, true);
-          let userRec = parseInt(await readInput("Enter # of record to activate/deactivate: "));
-          if ( userRec >=1 && userRec <= all.data.length ) {
-            let rec = all.data[userRec-1];
-            let comfirm = (await readInput(`Do you want to ${all.data[userRec-1].active === "true" ? "deactivate" : "activate"} this publicKey "${rec.publicKey.substring(0,pubKeyDisp)}" (y/n)?: `)).toUpperCase().trim();
+          display(active.data, true);
+          let userRec = parseInt(await readInput("Enter # of record to deactivate: "));
+          if ( userRec >=1 && userRec <= active.data.length ) {
+            let rec = active.data[userRec-1];
+            let comfirm = (await readInput(`Do you want to deactivate this publicKey "${rec.publicKey.substring(0,pubKeyDisp)}" (y/n)?: `)).toUpperCase().trim();
             if ( comfirm === "Y" ) {
-              let newActive = rec.active === "true" ? "false" : "true";
-              let res = await setRecord(rec.publicKey, "active", newActive);
+              let res = await setRecord(rec.publicKey, "active", "false");
               if ( res.data.changes === 1 ) {
-                console.log(`Record ${newActive === "true" ? "activated" : "deactivated"}.`);
+                console.log(`Record deactivated.`);
                 display( (await getRecords("publicKey", rec.publicKey)).data );
               } else {
                 console.log("Error updating record.");
