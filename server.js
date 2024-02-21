@@ -1,7 +1,7 @@
 const { createHash } = require('crypto');
 const { execSync } = require('child_process');
 const express = require("express");
-const { readFileSync, writeFileSync, existsSync, statSync, unlinkSync } = require('fs');
+const { readFileSync, writeFileSync, existsSync, statSync, unlinkSync, copyFileSync } = require('fs');
 const { resolve } = require('path');
 const http = require('http');
 const https = require('https');
@@ -157,6 +157,7 @@ $Shortcut.Save();`;
     try {
       execSync(`powershell.exe -Command "${shortcutCommand.replace(/\n/g,"; ")}"`, { stdio: 'inherit' });
       console.log('Shortcut created successfully');
+      copyFileSync(resolve("./3rd Party/SQLite Browser.lnk"), resolve("./SQLite Browser.lnk"));
     } catch (error) {
       console.error('Error extracting file:', error);
     }
