@@ -1,14 +1,26 @@
-require('dotenv').config();
 const { createHash } = require('crypto');
+const { execSync } = require('child_process');
 const express = require("express");
-const { readFileSync, writeFileSync, existsSync } = require('fs');
+const { readFileSync, writeFileSync, existsSync, statSync, unlinkSync } = require('fs');
+const { resolve } = require('path');
 const http = require('http');
 const https = require('https');
+
+require('dotenv').config();
+if ( process.env.DB_PATH === undefined ) {
+  process.env.DB_PATH = resolve("./Certificates.db");
+} else {
+  const stats = fs.statSync("/.env");
+  const diffMins = (new Date() - stats.mtime) / 60000;
+  if ( diffMins < 30 ) {
+    console.log(`.env file recently modified. Recreating shotcut.`);
+    unlinkSync(resolve("./3rd Party/SQLite Browser.lnk"));
+  }
+}
 const { textIT } = require('./backend/controller/textIT');
 const { certDue, newCSR, convertCRT } = require('./backend/controller/selfCheck');
 const { submitCSR } = require('./backend/controller/spawn');
 const apiRoutes = require('./backend/routes/api');
-const { resolve } = require('path');
 const httpsPort = 443;
 const httpPort = 80;
 const required_env_vars = ["SSL_KEY_PATH", "SSL_CERT_PATH", "SERVICE_NAME", "TWILIO_PHONE_NUMBER", "IT_PHONE", "ACCOUNTSID", "AUTH_TOKEN"];
@@ -123,6 +135,30 @@ let checkCert = async () => {
   }
   console.log(`Cert is not due. Cert expires in ${certCheck.daysLeft} days on ${certCheck.expires}.`);
   return false;
+}
+if ( !existsSync("./3rd Party/DB Browser for SQLite/") ) {
+  if ( existsSync("./3rd Party/DB Browser for SQLite.zip") ) {
+    try {
+      execSync(`powershell Expand-Archive -Path '${resolve("./3rd Party/DB Browser for SQLite.zip")}' -DestinationPath '${resolve("./3rd Party/")}'`);
+      console.log('Extraction complete');
+    } catch (error) {
+      console.error('Error extracting file:', error);
+    }
+  }
+}
+if ( existsSync("./3rd Party/DB Browser for SQLite/DB Browser for SQLite.exe") ) {
+  const shortcutCommand = 
+`$WScriptShell = New-Object -ComObject WScript.Shell
+$Shortcut = $WScriptShell.CreateShortcut('${resolve("./3rd Party/SQLite Browser.lnk")}')
+$Shortcut.TargetPath = '${resolve("./3rd Party/DB Browser for SQLite/DB Browser for SQLite.exe")}'
+$Shortcut.Arguments = '\\"${process.env.DB_PATH}\\"'
+$Shortcut.Save();`;
+    try {
+      execSync(`powershell.exe -Command "${shortcutCommand.replace(/\n/g,"; ")}"`, { stdio: 'inherit' });
+      console.log('Shortcut created successfully');
+    } catch (error) {
+      console.error('Error extracting file:', error);
+    }
 }
 (async () => {
   if ( missing.length > 0) {

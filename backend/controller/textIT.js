@@ -1,3 +1,4 @@
+const { addTextLog } = require('../sqlite/db');
 let client = {};
 let twilioWorking = false;
 try {
@@ -8,8 +9,15 @@ try {
 }
 const e = {
   textIT: async (msg) => {
+    msg = `${process.env.SERVICE_NAME.toUpperCase()}:\n${msg}`;
+    let logEntry = {
+      text: msg,
+      sentTo: process.env.IT_PHONE,
+      successful: false
+    };
     if (twilioWorking === false) {
       console.log(`Twilio client not working, "${msg}" not sent.`);
+      await addTextLog(logEntry);
       return false;
     }
     console.log(`Texting IT: "${msg}"`);
@@ -26,6 +34,8 @@ const e = {
     if (twilioRes.isError === true) {
       console.log( `Text failed: ${ JSON.stringify(twilioRes) }` );
     } else {
+      logEntry.successful = true;
+      await addTextLog(logEntry);
       console.log( `Text Sent: ${twilioRes.sid}` );
     }
     return true;

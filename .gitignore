@@ -9,3 +9,5 @@ build
 *.pem
 *.db
 *.log
+DB Browser for SQLite/
+SQLite Browser.lnk

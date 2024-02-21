@@ -1,6 +1,7 @@
-const { KJUR, X509, KEYUTIL, pemtohex } = require('jsrsasign');
+const { KJUR, X509, KEYUTIL } = require('jsrsasign');
 const { updateRecord, getRecord, registerCert } = require('../sqlite/db');
 const { retrieveCert, submitCSR } = require('./spawn');
+const { textIT } = require('./textIT');
 const { convertTimestamp } = require('./tools');
 const { readFileSync } = require('fs');
 const oneDay = 1000 * 60 * 60 * 24;
@@ -49,15 +50,14 @@ let validCSR = async (record, eventId) => {
       console.log(`${eventId}: Error parsing certificate text. Error: ${error.toString()}`);
       return {isValid:false, msg: "Error parsing certificate text. Admins will need to investigate."};
     }
-    let certAltNames = cert.getExtSubjectAltName().array.map( (e) => {return `${e.dns?`DNS: ${e.dns}`: `IP: ${e.ip}`}`}).join(", ");
-    let certSubjectStr = cert.getSubjectString();
-    let certPublicKey = Buffer.from(cert.getSPKI(), "hex").toString('base64');
-    let notAfter = convertTimestamp(cert.getNotAfter());//YYMMDDHHMMSSZ OR YYYYMMDDHHMMSSZ
-    if ( notAfter.isError === true ) {
-      return {isValid:false, msg: "Could not verify expiration date. Admins will need to investigate", err: notAfter.err};
+    let certExtract = extractCertData(cert);
+    if ( certExtract.isError === true ) {
+      return {isValid:false, msg: certExtract.msg, err: certExtract.err};
     }
-    let expires = notAfter.timestamp;
-    let certDaysToExpire = Math.round(Math.abs( expires.getTime() - new Date().getTime()) / oneDay);
+    let certAltNames = certExtract.altNames;//cert.getExtSubjectAltName().array.map( (e) => {return `${e.dns?`DNS: ${e.dns}`: `IP: ${e.ip}`}`}).join(", ");
+    let certSubjectStr = certExtract.subjectStr;//cert.getSubjectString();
+    let certPublicKey = certExtract.publicKey;//Buffer.from(cert.getSPKI(), "hex").toString('base64');
+    let certDaysToExpire = certExtrat.certDaysToExpire;//Math.round(Math.abs( expires.getTime() - new Date().getTime()) / oneDay);
     if ( certDaysToExpire > 14 ) {
       return {isValid:false, msg: `Certificate is not near expiration, cert has ${certDaysToExpire} days left. Try again within 14 days of expiration.`};
     }
@@ -92,26 +92,6 @@ let extractCertData = (cert) => {
     return {isError: true, msg: "Error extracting data cert.", err: error.toString()};
   }
 }
-let extractAndValidateCert = (clientCertText) => {
-  let cert = new X509();
-  try {
-    cert.readCertPEM(clientCertText);
-  } catch (error) {
-    return {isError: true, msg: "Failed to parse cert", err: error.toString()};
-  }
-  let publicKey = Buffer.from(cert.getSPKI(), 'hex').toString('base64');
-  let certValid = false;
-  try { 
-    let sig2 = new KJUR.crypto.ECDSA();
-    sig2.setPublicKeyHex(cert.getSPKIHex());
-    //sig2.init(clientCertText);
-    sig2.updateString(Buffer.from(clientCertText));
-    certValid = sig.verify(sigValueHex);
-  } catch (error) {
-    return {isError: true, msg: "Error Verifying Signature", err: error.toString()};
-  }
-  return {isError: false, certValid:certValid, publicKey:publicKey, cert: cert};
-}
 e.renew = async (req, res, csrText, eventId) => {
   if (KJUR.asn1.csr.CSRUtil.verifySignature( csrText ) !== true ) {
     console.log(`${eventId}: CSR WAS TAMPERTED WITH. ${JSON.stringify(csrText)}`);
@@ -127,6 +107,10 @@ e.renew = async (req, res, csrText, eventId) => {
   let altNames = csrInfo.params.extreq[altNameIndx].array.map( e => {return `${e.dns?`DNS: ${e.dns}`: `IP: ${e.ip}`}`}).join(", ");
   let match = await getRecord( publicKey, eventId);
   if ( match ) {
+    if ( match.active === false ) {
+      console.log(`${eventId}: CSR was rejected, admin has inactivate this key.`);
+      return res.json({isError: true, msg: "CSR was rejected, admin has inactivate this key."});
+    }
     if ( match.pending === true && (match.approveAll !== true && match.updateIP !== true && match.updateSubjectStr !== true && match.updateAltNames !== true) ) {
       console.log(`${eventId}: CSR was already submitted and is pending Admin approval.`);
       return res.json({isError: true, msg: "CSR was already submitted and is pending Admin approval."});
@@ -193,27 +177,14 @@ e.renew = async (req, res, csrText, eventId) => {
     return res.json({isError: true, msg: "Key is not in approved list. Have admin approve the new key."});
   }
 }
-e.register = async (b64Cert, b64Sig, res, eventId) => {
-  let ogCertStr = Buffer.from(b64Cert, "base64").toString();
-  let signedCertStr = Buffer.from(b64Sig, "base64").toString();
-  let ogCert = extractAndValidateCert(ogCertStr);
-  let signedCert = extractAndValidateCert(signedCertStr);
-  // console.log("ogCertStr:", ogCertStr);
-  console.log("signedCertStr:", signedCertStr);
-  // console.log("OG:", ogCert);
-  console.log("sig:", signedCert);
-  return res.json({isError: false, msg: "Route is not configured yet."});
-};
-e.registerTest = async (req, res) => {
-  console.log(Object.keys(req.body));
+e.register = async (clientCertText, clientSignatureHex, ip, res, eventId) => {
   let clientCert = new X509();
-  let clientCertText = req.body.pemCert;
   try {
     clientCert.readCertPEM(clientCertText);
   } catch (error) {
+    console.log(`${eventId}: Error parsing cert "${clientCertText.replace(/(\n|\r)/g,"")}"`, error.toString());
     return res.json({isError: true, msg: "Failed to parse cert", err: error.toString()});
   }
-  let clientSignatureHex = req.body.signatureHex;
   let clientPublicKey = KEYUTIL.getKey(clientCert.getPublicKey());
   let sigVerify = new KJUR.crypto.Signature({"alg": "SHA256withECDSA"});
   sigVerify.init(clientPublicKey);
@@ -223,7 +194,8 @@ e.registerTest = async (req, res) => {
   try {
     CACertText = readFileSync(process.env.SSL_CA_PEM_PATH).toString();
   } catch (error) {
-    return res.json({isError: true, msg: "Failed to read CA cert", err: error.toString()});
+    console.log(`${eventId}: Error reading CA cert`, error.toString());
+    return res.json({isError: true, msg: "Failed to read CA cert"});
   }
   let CAPublicKey = KEYUTIL.getKey(CACertText);
   let CACert = new X509();
@@ -232,18 +204,24 @@ e.registerTest = async (req, res) => {
   if (isCAIssued === true && isClientSigned === true) {
     let clientCertData = extractCertData(clientCert);
     if (clientCertData.isError === true) {
-      console.log("Error extracting data from client cert", clientCertData.err);
+      console.log(`${eventId}: Error extracting data from client cert`, clientCertData.err);
       return res.json({isError: true, msg: "Error extracting data from client cert"});
     }
-    clientCertData.createdIP = req.ip.replace("::ffff:", "");
+    clientCertData.createdIP = ip;
     clientCertData.created = new Date();
     clientCertData.createdTimestamp = `${clientCertData.created.toLocaleDateString()} ${clientCertData.created.toLocaleTimeString().replace(/:\d{2} /g, "")}`;
-    clientCertData.logs = [req.body.eventId];
+    clientCertData.logs = [eventId];
     clientCertData.pemCert = clientCertText;
-    let clientCertRegRes = registerCert(clientCertData);
-    return res.json({isError: false, msg: "Certificate is valid and will be registered."});
+    let clientCertRegRes = await registerCert(clientCertData, eventId);
+    if (clientCertRegRes.isError === true) {
+      console.log(`${eventId}: ${clientCertRegRes.msg} ${typeof clientCertRegRes.err == 'undefined' ? "" : clientCertRegRes.err}`)
+      return res.json({isError: true, msg: clientCertRegRes.msg});
+    }
+    textIT(`New certificate registered for ${clientCertData.subjectStr}. Please reivew.`);
+    console.log(`${eventId}: Certificate was registered.`, clientCertRegRes);
+    return res.json({isError: false, msg: "Certificate was registered."});
   }
+  console.log(`${eventId}: Invalid certificate, isCAIssued: ${isCAIssued} isClientSigned: ${isClientSigned}.`);
   return res.json({isError: false, msg: "Invalid certificate"});
 };
 module.exports = e;
-

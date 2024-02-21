@@ -27,36 +27,24 @@ router.post('/renew', async (req, res) => {
   return res.json({isError: true, msg: "Invalid cert request..."});
 });
 router.post("/register", async (req, res) => {
-  return await registerTest(req,res);
   let eventId = randomUUID();
-  console.log(`${eventId}: Register request from ${req.ip.replace("::ffff:", "")}`);
-  if (!req.body.b64Cert){
-    console.log(`${eventId}: Register request missing b64Cert.`);
-    return res.json({isError: true, msg: "Missing b64Cert property."})
+  let ip = req.ip.replace("::ffff:", "");
+  console.log(`${eventId}: Register request from ${ip}`);
+  if ( !req.body.pemCertText ){
+    console.log(`${eventId}: Register request missing pemCertText.`);
+    return res.json({isError: true, msg: "Missing pemCertText property."});
   }
-  if ( !req.body.b64Sig ) {
-    console.log(`${eventId}: Register request missing b64Sig.`);
-    return res.json({isError: true, msg: "Missing b64Sig body property."})
+  let pemCertText = req.body.pemCertText;
+  if ( !req.body.hexSignature ) {
+    console.log(`${eventId}: Register request missing hexSignature.`);
+    return res.json({isError: true, msg: "Missing hexSignature body property."});
   }
-  let b64Cert = req.body.b64Cert.toString().trim();
-  if ( b64Cert.length < 100 || b64Cert.length > 10000 ){
-    console.log(`${eventId}: Register request is of an invalid b64Cert length ${b64Cert.length}`);
-    return res.json({isError: true, msg: "Invalid b64Cert length."});
+  let hexSignature = req.body.hexSignature;
+  if ( !/^[a-f0-9]+$/i.test(hexSignature) ) {
+    console.log(`${eventId}: Register request invalid hexSignature characters '${hexSignature}'.`);
+    return res.json({isError: true, msg: "hexSignature contains invalid characters."});
   }
-  if ( !/^(?:[A-Za-z0-9+\/]{4})*(?:[A-Za-z0-9+\/]{2}==|[A-Za-z0-9+\/]{3}=)?$/.test(b64Cert) ) {
-    console.log(`${eventId}: Register request b64Cert is not a valid base64 string.`);
-    return res.json({isError: true, msg: "Invalid base64 string for b64Cert."});
-  }
-  let b64Sig = req.body.b64Sig.toString().trim();
-  if ( b64Sig.length < 100 || b64Sig.length > 10000 ){
-    console.log(`${eventId}: Register request is of an invalid b64Sig length ${b64Sig.length}`);
-    return res.json({isError: true, msg: "Invalid b64Sig length."});
-  }
-  if ( !/^(?:[A-Za-z0-9+\/]{4})*(?:[A-Za-z0-9+\/]{2}==|[A-Za-z0-9+\/]{3}=)?$/.test(b64Sig) ) {
-    console.log(`${eventId}: Register request b64Sig is not a valid base64 string.`);
-    return res.json({isError: true, msg: "Invalid base64 string for b64Sig."});
-  }
-  return await register(b64Cert, b64Sig, res, eventId);
+  register( pemCertText, hexSignature, ip, res, eventId );
 });
 
 module.exports = router;

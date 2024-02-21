@@ -1,5 +1,6 @@
 const Database = require('better-sqlite3');
-const db = new Database('./backend/sqlite/records.db', { /*verbose: console.log*/ });
+const db = new Database(process.env.DB_PATH, { /*verbose: console.log*/ });
+const { randomUUID } = require('crypto');
 const recordProps = [
   { key: "publicKey", slType: "TEXT PRIMARY KEY", jsType: "string"},
   { key: "active", slType: "TEXT", jsType: "bool"},
@@ -16,6 +17,14 @@ const recordProps = [
   { key: "updateAltNames", slType: "TEXT", jsType: "bool"},
   { key: "approveAll", slType: "TEXT", jsType: "bool"},
   { key: "logs", slType: "TEXT", jsType: "arrStr"}
+];
+const ITLogsProps = [
+  { key: "id", slType: "TEXT PRIMARY KEY", jsType: "string"},
+  { key: "text", slType: "TEXT", jsType: "string"},
+  { key: "sentTo", slType: "TEXT", jsType: "string"},
+  { key: "successful", slType: "TEXT", jsType: "bool"},
+  { key: "sentDate", slType: "INTEGER", jsType: "date"},
+  { key: "sentDateStr", slType: "TEXT", jsType: "dateStr"},
 ];
 let recordPropsObj = {};
 recordProps.map(p => recordPropsObj[p.key] = p.jsType);
@@ -62,30 +71,19 @@ let castFromDB = (val, type) => {
   }
 };
 let e = {};
-initalizeDB = async () => {
-  const tableExists = await db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='CertificatesInfo';`).get();
-  if (!tableExists) {
+initalizeDBs = async () => {
+  const CertificatesInfoExists = await db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='CertificatesInfo';`).get();
+  if (!CertificatesInfoExists) {
     console.log('Creating CertificatesInfo table');
     await db.prepare(`CREATE TABLE IF NOT EXISTS CertificatesInfo (${recordProps.map(p => `${p.key} ${p.slType}`).join(", ")});`).run();
-    //   publicKey TEXT PRIMARY KEY,
-    //   active TEXT,
-    //   pending TEXT,
-    //   currentCert TEXT,
-    //   created INTEGER,
-    //   createdTimestamp TEXT,
-    //   requestID INTEGER,
-    //   createdIP TEXT,
-    //   updateIP TEXT,
-    //   subjectStr TEXT,
-    //   updateSubjectStr TEXT,
-    //   altNames TEXT,
-    //   updateAltNames TEXT,
-    //   approveAll TEXT,
-    //   logs TEXT
-    // );`).run();
+  }
+  const TextITLogsExists = await db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='TextITLogs';`).get();
+  if (!TextITLogsExists) {
+    console.log('Creating TextITLogs table');
+    await db.prepare(`CREATE TABLE IF NOT EXISTS IT_Text_Logs (${ITLogsProps.map(p => `${p.key} ${p.slType}`).join(", ")});`).run();
   }
 }
-initalizeDB();
+initalizeDBs();
 
 e.getRecord = async (publicKey, eventId) => {
   let res = await db.prepare('SELECT * FROM CertificatesInfo WHERE publicKey = ?').get(publicKey);
@@ -105,76 +103,13 @@ e.updateRecord = async (record, eventId) => {
   if (existingRecord) {
     console.log(`${eventId}: Updating existing record for ${mappedRecord.publicKey}.`);
     return await db.prepare(`UPDATE CertificatesInfo SET ${recordProps.filter(p => p.key !== "publicKey").map(p => `${p.key} = ?`).join(", ")}, WHERE publicKey = ?`).run(...(recordProps.filter(p => p.key !== "publicKey").map(p => mappedRecord[p.key])));
-      // active = ?,
-      // pending = ?,
-      // currentCert = ?,
-      // created = ?,
-      // createdTimestamp = ?,
-      // requestID = ?,
-      // createdIP = ?,
-      // updateIP = ?,
-      // subjectStr = ?,
-      // updateSubjectStr = ?,
-      // altNames = ?,
-      // updateAltNames = ?,
-      // approveAll = ?,
-      // logs = ?
-      // WHERE publicKey = ?`).run(
-      //   mappedRecord.active,
-      //   mappedRecord.pending,
-      //   mappedRecord.currentCert,
-      //   mappedRecord.created,
-      //   mappedRecord.createdTimestamp,
-      //   mappedRecord.requestID,
-      //   mappedRecord.createdIP,
-      //   mappedRecord.updateIP,
-      //   mappedRecord.subjectStr,
-      //   mappedRecord.updateSubjectStr,
-      //   mappedRecord.altNames,
-      //   mappedRecord.updateAltNames,
-      //   mappedRecord.approveAll,
-      //   mappedRecord.logs,
-      //   mappedRecord.publicKey
-      // );
   } else {
     console.log(`${eventId}: Creating new record for ${record.publicKey}.`);
     return await db.prepare(`INSERT INTO CertificatesInfo ( ${recordProps.map(p => p.key).join(", ")} ) VALUES ( ${recordProps.map(p => "?").join(", ")} )`).run(...recordProps.map(p => mappedRecord[p.key]));
-    //   publicKey,
-    //   active,
-    //   pending,
-    //   currentCert,
-    //   created,
-    //   createdTimestamp,
-    //   requestID,
-    //   createdIP,
-    //   updateIP,
-    //   subjectStr,
-    //   updateSubjectStr,
-    //   altNames,
-    //   updateAltNames,
-    //   approveAll,
-    //   logs
-    // ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
-    //   mappedRecord.publicKey,
-    //   mappedRecord.active,
-    //   mappedRecord.pending,
-    //   mappedRecord.currentCert,
-    //   mappedRecord.created,
-    //   mappedRecord.createdTimestamp,
-    //   mappedRecord.requestID,
-    //   mappedRecord.createdIP,
-    //   mappedRecord.updateIP,
-    //   mappedRecord.subjectStr,
-    //   mappedRecord.updateSubjectStr,
-    //   mappedRecord.altNames,
-    //   mappedRecord.updateAltNames,
-    //   mappedRecord.approveAll,
-    //   mappedRecord.logs
-    // );
   }
 }
 
-e.registerCert = async (certData) => {
+e.registerCert = async (certData, eventId) => {
   let alreadyExist = await db.prepare('SELECT * FROM CertificatesInfo WHERE publicKey = ?').get(certData.publicKey);
   if ( alreadyExist ) {
     return {isError: true, msg: "This certificate is already registered."};
@@ -183,23 +118,43 @@ e.registerCert = async (certData) => {
   let newRecord = { };
   recordProps.forEach(p => {
     if ( typeof certData[p.key] != "undefined" ) {
-      newRecord[p.key] = castToDB(certData[p.key], p.jsType)
+      newRecord[p.key] = certData[p.key];
     }else {
       switch (p.jsType) {
         case "bool":{
-          newRecord[p.key] = "false";
+          newRecord[p.key] = false;
           break;
         }
         case "date":{
-          newRecord[p.key] = created-0;
+          newRecord[p.key] = created;
           break;
         }
         case "dateStr":{
           newRecord[p.key] = `${created.toLocaleDateString()} ${created.toLocaleTimeString().replace(/:\d{2} /g, "")}`;
         }
+        case "number":{
+          newRecord[p.key] = 0;
+          break;
+        }
+        default:{
+          newRecord[p.key] = "";
+        }
       }
     }
   });
+  try {
+    let addRes = await e.updateRecord(newRecord, eventId);
+    return {isError: false, msg: "Certificate registered successfully.", data: addRes};
+  } catch (error) {
+    return {isError: true, msg: "Could not register certificate.", err: error.toString()};
+  }
 };
-
+e.addTextLog = async (entry) => {
+  entry.id = randomUUID();
+  let castedEntry = {};
+  entry.sentDate = new Date();
+  entry.sentDateStr = `${new Date(entry.sentDate).toLocaleDateString()} ${new Date(entry.sentDate).toLocaleTimeString().replace(/:\d{2} /g, "")}`;
+  ITLogsProps.forEach( p => castedEntry[p.key] = castToDB(entry[p.key], p.jsType) );
+  return await db.prepare(`INSERT INTO IT_Text_Logs ( ${ITLogsProps.map(p => p.key).join(", ")} ) VALUES ( ${ITLogsProps.map(p => "?").join(", ")} )`).run(...ITLogsProps.map(p => castedEntry[p.key]));
+};
 module.exports = e;

@@ -1,0 +1,12 @@
+SSL_KEY_PATH= #full path to the key file
+SSL_CERT_PATH= #full path to cert file (PEM format)
+SSL_CA_PEM_PATH= #full path to the CA cert file (PEM format)
+SSL_CA_CER_PATH= #full path to the CA cert file (DER format)
+SERVICE_NAME=splrootca #name of the service used in twillio messages
+ACCOUNTSID= #twilio account sid
+AUTH_TOKEN= #twilio auth token
+TWILIO_PHONE_NUMBER= #twilio phone number (format +1XXXXXXXXXX)
+IT_PHONE= #phone number (format +1XXXXXXXXXX) that get text messages
+
+#Optional keys
+DB_PATH= #full path to the sqlite database file

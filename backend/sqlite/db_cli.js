@@ -1,6 +1,11 @@
+require('dotenv').config();
+const { resolve } = require('path');
+if ( process.env.DB_PATH === undefined ) {
+  process.env.DB_PATH = resolve("./Certificates.db");
+}
 const Database = require('better-sqlite3');
 const readline = require('readline');
-const db = new Database('./backend/sqlite/records.db', { /*verbose: console.log*/ });
+const db = new Database(process.env.DB_PATH, { /*verbose: console.log*/ });
 const validProps = ["publicKey","active","pending","currentCert","created","createdTimestamp","requestID","createdIP","updateIP","subjectStr","updateSubjectStr","altNames","updateAltNames","approveAll"];
 const pubKeyDisp = 20;
 const displayProps = [{key:"publicKey", size: pubKeyDisp},{key:"active", size: 6},{key:"pending", size: 10},{key:"createdTimestamp", size: 18},{key:"requestID", size: 10},{key:"createdIP", size: 15},{key:"updateIP", size: 8},{key:"updateSubjectStr", size: 18},{key:"updateAltNames", size: 15},{key:"approveAll", size: 10}];
@@ -82,7 +87,7 @@ let mainMenu = () => {
   console.log("-- Main Menu --");
   console.log("   1 - List pending requests");
   console.log("   2 - Update/Approve pending requests");
-  console.log("   3 - List inactive requests");
+  console.log("   3 - Accept inactive requests");
   console.log("   4 - Set active/inactive record");
   console.log("   5 - List all records");
   console.log("   6 - Update any record");
