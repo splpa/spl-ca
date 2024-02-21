@@ -8,7 +8,8 @@ const recordProps = [
   { key: "pemCert", slType: "TEXT", jsType: "string"},
   { key: "created", slType: "INTEGER", jsType: "date"},
   { key: "createdTimestamp", slType: "TEXT", jsType: "dateStr"},
-  { key: "requestID", slType: "INTEGER", jsType: "number"},
+  { key: "expires", slType: "INTEGER", jsType: "date"},
+  { key: "requestId", slType: "INTEGER", jsType: "number"},
   { key: "createdIP", slType: "TEXT", jsType: "string"},
   { key: "updateIP", slType: "TEXT", jsType: "bool"},
   { key: "subjectStr", slType: "TEXT", jsType: "string"},
@@ -71,6 +72,8 @@ let castFromDB = (val, type) => {
   }
 };
 let e = {};
+e.certProps = recordProps;
+e.ITLogsProps = ITLogsProps;
 initalizeDBs = async () => {
   const CertificatesInfoExists = await db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='CertificatesInfo';`).get();
   if (!CertificatesInfoExists) {
@@ -85,6 +88,23 @@ initalizeDBs = async () => {
 }
 initalizeDBs();
 
+e.getExpiringRecords = async ( days = 8) => {
+  const now = new Date().getTime();
+  // There are 86400000 milliseconds in a day (24 * 60 * 60 * 1000)
+  const daysFromNow = now + (days * 86400000);
+  let query = `
+    SELECT * FROM CertificatesInfo 
+    WHERE active = 'TRUE' 
+    AND expires > ? 
+    AND expires <= ?`;
+  let res = await db.prepare(query).get(now,daysFromNow);
+  if ( res !== undefined ) {
+    let record = {};
+    Object.keys(res).map( prop => record[prop] = castFromDB(res[prop], recordPropsObj[prop]) );
+    return record;
+  }
+  return false;
+};
 e.getRecord = async (publicKey, eventId) => {
   let res = await db.prepare('SELECT * FROM CertificatesInfo WHERE publicKey = ?').get(publicKey);
   let record = false;

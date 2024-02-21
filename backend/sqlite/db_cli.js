@@ -1,33 +1,18 @@
 require('dotenv').config();
 const { resolve } = require('path');
+const { getExpiringRecords } = require('./db');
 if ( process.env.DB_PATH === undefined ) {
   process.env.DB_PATH = resolve("./Certificates.db");
 }
 const Database = require('better-sqlite3');
 const readline = require('readline');
 const db = new Database(process.env.DB_PATH, { /*verbose: console.log*/ });
-const validProps = ["publicKey","active","pending","currentCert","created","createdTimestamp","requestID","createdIP","updateIP","subjectStr","updateSubjectStr","altNames","updateAltNames","approveAll"];
+const validProps = ["publicKey","active","pending","pemCert","created","createdTimestamp","requestId","createdIP","updateIP","subjectStr","updateSubjectStr","altNames","updateAltNames","approveAll"];
 const pubKeyDisp = 20;
-const displayProps = [{key:"publicKey", size: pubKeyDisp},{key:"active", size: 6},{key:"pending", size: 10},{key:"createdTimestamp", size: 18},{key:"requestID", size: 10},{key:"createdIP", size: 15},{key:"updateIP", size: 8},{key:"updateSubjectStr", size: 18},{key:"updateAltNames", size: 15},{key:"approveAll", size: 10}];
+const displayProps = [{key:"publicKey", size: pubKeyDisp},{key:"active", size: 6},{key:"pending", size: 10},{key:"createdTimestamp", size: 18},{key:"requestId", size: 10},{key:"createdIP", size: 15},{key:"updateIP", size: 8},{key:"updateSubjectStr", size: 18},{key:"updateAltNames", size: 15},{key:"approveAll", size: 10}];
 const updatibleProps = [ "active", "updateIP", "updateSubjectStr", "updateAltNames", "approveAll" ];
 const itemSpace = "  ";
 let listedKeys = [];
-/*
-  *key                  *type
-  publicKey             TEXT PRIMARY KEY
-  active                TEXT
-  currentCert           TEXT
-  created               INTEGER
-  createdTimestamp      TEXT
-  requestID             INTEGER
-  createdIP             TEXT
-  updateIP              TEXT
-  subjectStr            TEXT
-  updateSubjectStr      TEXT
-  altNames              TEXT
-  updateAltNames        TEXT
-  approveAll            TEXT
-*/
 let readInput = async (prompt) => {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   return new Promise((resolve) => {
@@ -37,6 +22,15 @@ let readInput = async (prompt) => {
     });
   });
 }
+let displayExpiringRecords = async () => {
+  let expiredRecords = await getExpiringRecords(14);
+  if (expiredRecords === false) {
+    console.log("No records expiring within the next 14 days");
+  } else {
+    console.log("These Records will expire within the next 14 days:");
+    display(expiredRecords);
+  }
+};
 let getAll = async () => {
   return {isError: false, data: await db.prepare('SELECT * FROM CertificatesInfo').all() }
 };
@@ -44,15 +38,12 @@ let exists = async (publicKey) => {
   return typeof await db.prepare('SELECT * FROM CertificatesInfo WHERE publicKey = ?').get(publicKey) == "undefined" ? false : true;
 };
 let getPending = async () => {
-  let noRequestID =  await getRecords("requestID", -1);
+  let noRequestId =  await getRecords("requestId", -1);
   let pending = await getRecords("pending", "true");
-  let allPending = noRequestID.data.concat(pending.data) ;
+  let allPending = noRequestId.data.concat(pending.data) ;
   allPending = Array.from(new Map(allPending.map(item => [item.publicKey, item])).values());
   return {isError: false, data: allPending};
 };
-let getInactive = async () => {
-  return await getRecords("active", "false");
-}
 let getRecords = async (prop, value) => {
   if ( !validProps.includes(prop) ) {
     return {isError:true, msg:`Invalid property name '${prop}'` , data:[]};
@@ -79,7 +70,7 @@ let display = ( records, prompt = false ) => {
   console.log(records.map( (record) => {
     i = i + 1;
     listedKeys.push(record.publicKey);
-    return `${prompt === true ? `${i.toString().padStart(4, " ")} -   ` : ""}${displayProps.map( (prop) => record[prop.key].toString().substring(0,prop.size).padEnd(prop.size, " ")).join(itemSpace)}`;
+    return `${prompt === true ? `${i.toString().padStart(4, " ")} -   ` : ""}${displayProps.map( (prop) => {return record[prop.key].toString().substring(0,prop.size).padEnd(prop.size, " ")}).join(itemSpace)}`;
   }).join("\r\n"));
 }
 let mainMenu = () => {
@@ -90,14 +81,15 @@ let mainMenu = () => {
   console.log("   3 - Activate records");
   console.log("   4 - Deactivate records");
   console.log("   5 - List all records");
-  console.log("   6 - Update any record");
-  console.log("   7 - Exit");
+  console.log("   6 - Show records about to expire");
+  console.log("   7 - Update any record");
+  console.log("   8 - Exit");
 }
 ( async ( ) => {
   while (true) {
     mainMenu();
     let userRes = await readInput("Enter your choice: ");
-    if (userRes === "7" ) break;
+    if (userRes === "8" ) break;
     switch (userRes) {
       case "1":{
         console.clear();
@@ -131,7 +123,7 @@ let mainMenu = () => {
         console.clear();
         let inactive = await getRecords("active", "false");
         if (inactive.data.length === 0) {
-          console.log("No inactive requests.");
+          console.log("No deactivated requests found.");
         } else {
           display(inactive.data, true);
           let userRec = parseInt(await readInput("Enter # of record to activate: "));
@@ -159,7 +151,7 @@ let mainMenu = () => {
         console.clear();
         let active = await getRecords("active", "true");
         if (active.data.length === 0) {
-          console.log("No records.");
+          console.log("No active records found.");
         } else {
           display(active.data, true);
           let userRec = parseInt(await readInput("Enter # of record to deactivate: "));
@@ -194,6 +186,11 @@ let mainMenu = () => {
         break;
       }
       case "6":{
+        console.clear();
+        await displayExpiringRecords();
+        break;
+      }
+      case "7":{
         console.clear();
         let all2 = await getAll();
         if ( all2.data.length === 0 ) {
@@ -235,7 +232,7 @@ let mainMenu = () => {
         console.clear();
         let inactive = await getRecords("active", "false");
         if (inactive.data.length === 0) {
-          console.log("No inactive records to delete.");
+          console.log("No deactivate records to delete.");
         } else {
           display( inactive.data, true );
           let userRes = await readInput( "Enter # of record to delete: " );

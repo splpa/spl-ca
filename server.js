@@ -20,6 +20,7 @@ if ( process.env.DB_PATH === undefined ) {
 const { textIT } = require('./backend/controller/textIT');
 const { certDue, newCSR, convertCRT } = require('./backend/controller/selfCheck');
 const { submitCSR } = require('./backend/controller/spawn');
+const cron = require('./backend/controller/cron');
 const apiRoutes = require('./backend/routes/api');
 const httpsPort = 443;
 const httpPort = 80;
@@ -198,6 +199,7 @@ $Shortcut.Save();`;
       let ext = req.url.replace("/CA.", "");
       return await returnCert(req, res, ext);
     });
+    cron.start();
     // Create HTTP server for redirect
     const httpServer = http.createServer((req, res) => {
       res.writeHead(301, { "Location": "https://" + req.headers['host'] + req.url });

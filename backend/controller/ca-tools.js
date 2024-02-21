@@ -1,5 +1,5 @@
 const { KJUR, X509, KEYUTIL } = require('jsrsasign');
-const { updateRecord, getRecord, registerCert } = require('../sqlite/db');
+const { updateRecord, getRecord, registerCert, CertProps } = require('../sqlite/db');
 const { retrieveCert, submitCSR } = require('./spawn');
 const { textIT } = require('./textIT');
 const { convertTimestamp } = require('./tools');
@@ -24,16 +24,16 @@ let markActive = async (record, eventId) => {
 let validCSR = async (record, eventId) => {
   let certStr = null;
   let cert = null;
-  if ( record.requestID > 0 && record.currentCert !== "" ) {
-    console.log(`${eventId}: Checking with CA for cert for requestID ${record.requestID} to verify cert expiration.`);
+  if ( record.requestId > 0 && record.pemCert !== "" ) {
+    console.log(`${eventId}: Checking with CA for cert for requestId ${record.requestId} to verify cert expiration.`);
     //first check if cert already exists
-    let certRes = await retrieveCert(record.requestID, createHash("sha256").update(record.publicKey).digest('hex'), eventId);
+    let certRes = await retrieveCert(record.requestId, createHash("sha256").update(record.publicKey).digest('hex'), eventId);
     if ( certRes.isError ){
       return { isValid:false, msg: certRes.msg }
     }
-    certStr = Buffer.from(certRes.b64Cert, "base64").toString();
-  } else if ( record.currentCert !== "" ){
-    certStr = Buffer.from(record.currentCert, "base64").toString();
+    certStr = Buffer.from(certRes.b64Cert, "base64");
+  } else if ( record.pemCert !== "" ){
+    certStr = record.pemCert;
   } else {
     //no cert exist only continue if admin has approved this key
     if ( record.approveAll !== true ) {
@@ -139,16 +139,23 @@ e.renew = async (req, res, csrText, eventId) => {
     //time to submit the CSR
     let csrRes = await submitCSR(csrText, createHash("sha256").update(publicKey).digest('hex'));
     if ( csrRes.isError === true ) {
-      if (csrRes.requestId) match.requestID = csrRes.requestId;
+      if (csrRes.requestId) match.requestId = csrRes.requestId;
       markPending(match, eventId);
       console.log(`${eventId}: ${csrRes.msg} ${csrRes.err}` );
       return res.json({isError: true, msg: csrRes.msg});
     }
-    match.subjectStr = subjectStr;
-    match.altNames = altNames;
-    match.createdIP = sourceIP;
-    match.currentCert = csrRes.b64Cert;
-    match.requestID = csrRes.requestId;
+    let certExtract = extractCertData(Buffer.from(csrRes.b64Cert, "base64").toString());
+    if ( certExtract.isError === true ) {
+      console.log(`${eventId}: Error extracting data from new cert.`, certExtract.err);
+      textIT(`Error extracting data from a cert for ${match.subjectStr}. Please fix, eventId: ${eventId}.`);
+    } else {
+      match.subjectStr = certExtract.subjectStr;
+      match.altNames = certExtract.altNames;
+      match.createdIP = sourceIP;
+      match.pemCert = certExtract.pemCert;
+      match.requestId = csrRes.requestId;
+      match.expires = certExtract.expires;
+    }
     let markRes = await markActive(match, eventId);
     if (markRes.changes !== 1) {
       console.log(`${eventId}: Error marking record as active.`);
@@ -160,10 +167,11 @@ e.renew = async (req, res, csrText, eventId) => {
       publicKey: publicKey,
       active: false,
       pending: true,
-      currentCert: "",
-      created: created - 0,
+      pemCert: "",
+      created: created,
       createdTimestamp: `${created.toLocaleDateString()} ${created.toLocaleTimeString().replace(/:\d{2} /g,"")}`,
-      requestID: -1,
+      expires: created,
+      requestId: -1,
       createdIP: sourceIP,
       updateIP: false,
       subjectStr: "",
