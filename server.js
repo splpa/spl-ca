@@ -200,6 +200,12 @@ $Shortcut.Save();`;
       let ext = req.url.replace("/CA.", "");
       return await returnCert(req, res, ext);
     });
+    app.get(process.env.CA_PEM_BUNDLE_ROUTE, async (req, res) => {
+      if (existsSync(process.env.CA_PEM_BUNDLE_PATH)) {
+        return res.sendFile(process.env.CA_PEM_BUNDLE_PATH);
+      }
+      return res.status(404).send("Error: CA Bundle file not found.");
+    });
     cron.start();
     // Create HTTP server for redirect
     const httpServer = http.createServer((req, res) => {
