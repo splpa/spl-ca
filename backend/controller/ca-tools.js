@@ -1,6 +1,7 @@
 const { KJUR, X509, KEYUTIL } = require('jsrsasign');
 const { updateRecord, getRecord, registerCert, CertProps } = require('../sqlite/db');
-const { retrieveCert, submitCSR } = require('./spawn');
+const { retrieveCert, submitCSR, submitCSRManual, checkRequestStatus } = require('./spawn');
+const { createHash } = require('crypto');
 const { textIT } = require('./textIT');
 const { convertTimestamp } = require('./tools');
 const { readFileSync } = require('fs');
@@ -232,4 +233,77 @@ e.register = async (clientCertText, clientSignatureHex, ip, res, eventId) => {
   console.log(`${eventId}: Invalid certificate, isCAIssued: ${isCAIssued} isClientSigned: ${isClientSigned}.`);
   return res.json({isError: false, msg: "Invalid certificate"});
 };
+e.csrRequest = async (req, res, csrText, eventId) => {
+  // Verify CSR signature
+  if (KJUR.asn1.csr.CSRUtil.verifySignature(csrText) !== true) {
+    console.log(`${eventId}: CSR signature verification failed.`);
+    return res.json({ isError: true, msg: "CSR signature verification failed." });
+  }
+  // Extract public key from CSR for filename
+  let csr = KJUR.asn1.csr.CSRUtil.getParam(csrText);
+  let csrInfo = new KJUR.asn1.csr.CertificationRequest(csr);
+  let publicKey = csrInfo.params.sbjpubkey.replace(/(\r|\n|-+(BEGIN|END) PUBLIC KEY-+)/g, "");
+  let fileName = createHash("sha256").update(publicKey).digest('hex');
+  // Submit CSR without auto-signing
+  let submitRes = await submitCSRManual(csrText, fileName);
+  if (submitRes.isError === true) {
+    console.log(`${eventId}: ${submitRes.msg} ${submitRes.err || ''}`);
+    return res.json({ isError: true, msg: submitRes.msg });
+  }
+  console.log(`${eventId}: CSR submitted with requestId ${submitRes.requestId}`);
+  return res.json({ isError: false, msg: submitRes.msg, requestId: submitRes.requestId });
+};
+
+e.csrStatus = async (req, res, requestId, eventId) => {
+  // Check request status with CA
+  let statusRes = await checkRequestStatus(requestId);
+  if (statusRes.isError === true) {
+    console.log(`${eventId}: ${statusRes.msg} ${statusRes.err || ''}`);
+    return res.json({ isError: true, msg: statusRes.msg });
+  }
+  if (statusRes.status === "issued") {
+    // Retrieve the certificate
+    let fileName = `request_${requestId}`;
+    let certRes = await retrieveCert(requestId, fileName);
+    if (certRes.isError === true) {
+      console.log(`${eventId}: Error retrieving certificate: ${certRes.msg}`);
+      return res.json({ isError: true, msg: certRes.msg });
+    }
+    // Extract certificate data
+    let certPem = Buffer.from(certRes.b64Cert, "base64").toString();
+    let cert = new X509();
+    try {
+      cert.readCertPEM(certPem);
+    } catch (error) {
+      console.log(`${eventId}: Error parsing certificate: ${error.toString()}`);
+      return res.json({ isError: true, msg: "Error parsing issued certificate." });
+    }
+    let certData = extractCertData(cert);
+    if (certData.isError === true) {
+      console.log(`${eventId}: Error extracting cert data: ${certData.err}`);
+      return res.json({ isError: true, msg: "Error extracting certificate data." });
+    }
+    // Auto-register the certificate
+    let ip = req.ip.replace("::ffff:", "");
+    certData.createdIP = ip;
+    certData.created = new Date();
+    certData.createdTimestamp = `${certData.created.toLocaleDateString()} ${certData.created.toLocaleTimeString().replace(/:\d{2} /g, "")}`;
+    certData.logs = [eventId];
+    certData.pemCert = certPem;
+    certData.requestId = requestId;
+    let registerRes = await registerCert(certData, eventId);
+    if (registerRes.isError === true) {
+      console.log(`${eventId}: ${registerRes.msg} ${registerRes.err || ''}`);
+      // Still return the cert even if registration failed
+      return res.json({ isError: false, status: "issued", msg: "Certificate issued but auto-registration failed: " + registerRes.msg, b64Cert: certRes.b64Cert });
+    }
+    textIT(`Certificate request ${requestId} was issued and auto-registered for ${certData.subjectStr}. Please review.`);
+    console.log(`${eventId}: Certificate issued and auto-registered for requestId ${requestId}`);
+    return res.json({ isError: false, status: "issued", msg: "Certificate has been issued and registered.", b64Cert: certRes.b64Cert });
+  }
+  // Return status for pending/denied/failed
+  console.log(`${eventId}: Request ${requestId} status: ${statusRes.status}`);
+  return res.json({ isError: false, status: statusRes.status, msg: statusRes.msg });
+};
+
 module.exports = e;

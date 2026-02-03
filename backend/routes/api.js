@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { renew, register, registerTest } = require('../controller/ca-tools');
+const { renew, register, csrRequest, csrStatus } = require('../controller/ca-tools');
 const router = Router();
 const { randomUUID } = require('crypto');
 
@@ -45,6 +45,41 @@ router.post("/register", async (req, res) => {
     return res.json({isError: true, msg: "hexSignature contains invalid characters."});
   }
   register( pemCertText, hexSignature, ip, res, eventId );
+});
+
+router.post('/request', async (req, res) => {
+  let eventId = randomUUID();
+  console.log(`${eventId}: CSR request from ${req.ip.replace("::ffff:", "")}`);
+  if (!req.body.req) {
+    console.log(`${eventId}: Request missing req property.`);
+    return res.json({ isError: true, msg: "Missing req property." });
+  }
+  let reqData = req.body.req.toString().trim();
+  if (reqData.length < 100 || reqData.length > 2000) {
+    console.log(`${eventId}: Request has invalid req length ${reqData.length}`);
+    return res.json({ isError: true, msg: "Invalid req length..." + reqData.length });
+  }
+  if (!/^(?:[A-Za-z0-9+\/]{4})*(?:[A-Za-z0-9+\/]{2}==|[A-Za-z0-9+\/]{3}=)?$/.test(reqData)) {
+    console.log(`${eventId}: Request is not a valid base64 string.`);
+    return res.json({ isError: true, msg: "Invalid base64 string for req..." });
+  }
+  let csrText = Buffer.from(reqData, 'base64').toString('utf8');
+  if (csrText.startsWith("-----BEGIN CERTIFICATE REQUEST-----") && /-----END CERTIFICATE REQUEST-----(\n{0,1}|\r\n)$/.test(csrText)) {
+    return await csrRequest(req, res, csrText, eventId);
+  }
+  console.log(`${eventId}: Request is not in the right format.`);
+  return res.json({ isError: true, msg: "Invalid cert request..." });
+});
+
+router.get('/request/:id', async (req, res) => {
+  let eventId = randomUUID();
+  console.log(`${eventId}: Status check for request ${req.params.id} from ${req.ip.replace("::ffff:", "")}`);
+  let requestId = parseInt(req.params.id, 10);
+  if (isNaN(requestId) || requestId <= 0) {
+    console.log(`${eventId}: Invalid request ID: ${req.params.id}`);
+    return res.json({ isError: true, msg: "Invalid request ID. Must be a positive integer." });
+  }
+  return await csrStatus(req, res, requestId, eventId);
 });
 
 module.exports = router;

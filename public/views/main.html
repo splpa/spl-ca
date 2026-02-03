@@ -62,7 +62,7 @@
               </li>
               <br>
               <li>
-                <strong>POST:</strong> <a href="/">/api/register</a> - This endpoint will register a certificate, which will have to be accepted by admins to enable renew.
+                <strong>POST:</strong> <a href="/">/api/register</a> - <em style="color: #888;">(Obsolete - use /api/request instead)</em> This endpoint will register a certificate, which will have to be accepted by admins to enable renew.
                 <p>
                   <strong>Requirements:</strong>
                 </p>
@@ -72,13 +72,57 @@
                   </li>
                   <ul>
                     <li>
-                      <strong>b64Cert</strong>: base64 encoded string of the PEM certificate. 
+                      <strong>b64Cert</strong>: base64 encoded string of the PEM certificate.
                     </li>
                     <li>
                       <strong>b64Sig</strong>:  b64Sig is the base64 encoded signature of the certificate
                     </li>
                   </ul>
                 </ol>
+              </li>
+              <br>
+              <li>
+                <strong>POST:</strong> <a href="/">/api/request</a> - Submit a CSR for manual CA admin approval (no auto-sign).
+                <p>
+                  <strong>Requirements:</strong>
+                </p>
+                <ol>
+                  <li>
+                    <p>The request must send a JSON object in the body with the following properties:</p>
+                    <ul>
+                      <li>
+                        <strong>req</strong>: This is the CSR generated with openssl, must be sent as a base64 encoded string.
+                      </li>
+                    </ul>
+                  </li>
+                </ol>
+                <p>
+                  <strong>Response:</strong>
+                </p>
+                <ul>
+                  <li>On success: <code>{ "isError": false, "msg": "...", "requestId": 12345 }</code></li>
+                  <li>Use the returned <code>requestId</code> to check status via <code>GET /api/request/:id</code></li>
+                </ul>
+              </li>
+              <br>
+              <li>
+                <strong>GET:</strong> <a href="/">/api/request/:id</a> - Check status of a CSR request. If issued, auto-registers the certificate and returns it.
+                <p>
+                  <strong>Parameters:</strong>
+                </p>
+                <ul>
+                  <li>
+                    <strong>:id</strong>: The request ID returned from <code>POST /api/request</code>
+                  </li>
+                </ul>
+                <p>
+                  <strong>Response:</strong>
+                </p>
+                <ul>
+                  <li>Pending: <code>{ "isError": false, "status": "pending", "msg": "..." }</code></li>
+                  <li>Issued: <code>{ "isError": false, "status": "issued", "msg": "...", "b64Cert": "..." }</code></li>
+                  <li>Denied: <code>{ "isError": false, "status": "denied", "msg": "..." }</code></li>
+                </ul>
               </li>
             </ul>
         </div>
