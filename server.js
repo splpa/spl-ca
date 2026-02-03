@@ -24,7 +24,7 @@ const cron = require('./backend/controller/cron');
 const apiRoutes = require('./backend/routes/api');
 const httpsPort = 443;
 const httpPort = 80;
-const required_env_vars = ["SSL_KEY_PATH", "SSL_CERT_PATH", "SERVICE_NAME", "TWILIO_PHONE_NUMBER", "IT_PHONE", "ACCOUNTSID", "AUTH_TOKEN"];
+const required_env_vars = ["SSL_KEY_PATH", "SSL_CERT_PATH", "SERVICE_NAME","SMTP2GO_API_KEY", "SMTP2GO_FROM", "IT_EMAIL"];
 if ( process.send === undefined ) {
   process.send = (msg) => {console.log(`App not launched by PM2, so not sending "${msg}" signal.`)};
 }
