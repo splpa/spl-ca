@@ -1,13 +1,18 @@
 node_modules
+node_modules_old
+certs
+certs/
 *.env
 *.json
 build
 .cache/
 *.key
 *.req
+*.csr
 *.crt
 *.pem
 *.db
 *.log
+*.old
 DB Browser for SQLite/
 SQLite Browser.lnk
