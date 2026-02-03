@@ -1,44 +1,49 @@
 const { addTextLog } = require('../sqlite/db');
-let client = {};
-let twilioWorking = false;
-try {
-  client = require('twilio')(process.env.ACCOUNTSID, process.env.AUTH_TOKEN);
-  twilioWorking = true;
-} catch (error) {
-  console.log(`Twilio client error: ${error.toString()}`);
-}
+
 const e = {
   textIT: async (msg) => {
     msg = `${process.env.SERVICE_NAME.toUpperCase()}:\n${msg}`;
     let logEntry = {
       text: msg,
-      sentTo: process.env.IT_PHONE,
+      sentTo: process.env.IT_EMAIL,
       successful: false
     };
-    if (twilioWorking === false) {
-      console.log(`Twilio client not working, "${msg}" not sent.`);
+    if (!process.env.SMTP2GO_API_KEY) {
+      console.log(`SMTP2GO_API_KEY not configured, "${msg}" not sent.`);
       await addTextLog(logEntry);
       return false;
     }
-    console.log(`Texting IT: "${msg}"`);
-    let twilioRes = {};
+    console.log(`Emailing IT: "${msg}"`);
+    let mailRes = {};
     try {
-      twilioRes = await client.messages.create({
-        body: msg,
-        from: process.env.TWILIO_PHONE_NUMBER,
-        to: process.env.IT_PHONE
+      const response = await fetch('https://api.smtp2go.com/v3/email/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          api_key: process.env.SMTP2GO_API_KEY,
+          to: [process.env.IT_EMAIL],
+          sender: process.env.SMTP2GO_FROM,
+          subject: `${process.env.SERVICE_NAME.toUpperCase()} - Certificate Alert`,
+          text_body: msg
+        })
       });
+      mailRes = await response.json();
     } catch (error) {
-      twilioRes = {isError: true, err: error.toString()};
+      mailRes = { isError: true, err: error.toString() };
     }
-    if (twilioRes.isError === true) {
-      console.log( `Text failed: ${ JSON.stringify(twilioRes) }` );
+    if (mailRes.isError === true || mailRes.data?.failed > 0) {
+      console.log(`Email failed: ${JSON.stringify(mailRes)}`);
+      await addTextLog(logEntry);
+      return false;
     } else {
       logEntry.successful = true;
       await addTextLog(logEntry);
-      console.log( `Text Sent: ${twilioRes.sid}` );
+      console.log(`Email Sent: ${mailRes.data?.email_id || 'success'}`);
     }
     return true;
   }
 };
- module.exports = e;
+
+module.exports = e;
