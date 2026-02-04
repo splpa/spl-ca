@@ -8,23 +8,39 @@ param(
     [string]$CAConfig = "SPLROOTCA\PathologyAssociates-SPLROOTCA-CA",
     [string]$TempDir = "C:\Apps\Apps\spl-ca\temp"
 )
-
+$logFile = "C:\Apps\Apps\spl-ca\logs\ca-worker.log"
+if (-not (Test-Path $logFile)) {
+    New-Item -ItemType File -Path $logFile -Force | Out-Null
+} else {
+    # Archive old log if larger than 5MB
+    $fileInfo = Get-Item $logFile
+    if ($fileInfo.Length -gt 5MB) {
+        $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+        $archivePath = "$logFile.$timestamp.bak"
+        Move-Item -Path $logFile -Destination $archivePath -Force
+        New-Item -ItemType File -Path $logFile -Force | Out-Null
+    }
+}
 # Ensure temp directory exists
 if (-not (Test-Path $TempDir)) {
     New-Item -ItemType Directory -Path $TempDir -Force | Out-Null
 }
 
 function Write-Log {
-    param([string]$Message)
+    param([string]$Message, [string]$level="")
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     Write-Output "[$timestamp] $Message"
+    if ($level -ne "") {
+      $logEntry = "[$timestamp] [$level] $Message"
+      $logEntry | Out-File -FilePath $logFile -Append -Encoding utf8
+    }
 }
 
 function Invoke-Sqlite {
     param([string]$Query)
     $result = sqlite3 $DbPath -header -separator "|" $Query 2>&1
     if ($LASTEXITCODE -ne 0) {
-        Write-Log "SQLite error: $result"
+        Write-Log "SQLite error: $result", "ERROR"
         return $null
     }
     return $result
@@ -97,19 +113,19 @@ function Submit-CSR {
         Remove-Item $reqFile -Force -ErrorAction SilentlyContinue
         if ($result -match "RequestId:\s*(\d+)") {
             $requestId = [int]$Matches[1]
-            Write-Log "CSR $($Request.uuid) submitted, RequestId: $requestId"
+            Write-Log "CSR $($Request.uuid) submitted, RequestId: $requestId", "INFO"
             Update-RequestStatus -Id $Request.id -Status "submitted" -RequestId $requestId
             return $true
         }
         else {
-            Write-Log "CSR $($Request.uuid) submission failed: $result"
+            Write-Log "CSR $($Request.uuid) submission failed: $result", "ERROR"
             Update-RequestStatus -Id $Request.id -Status "failed" -Error $result
             return $false
         }
     }
     catch {
         Remove-Item $reqFile -Force -ErrorAction SilentlyContinue
-        Write-Log "CSR $($Request.uuid) error: $_"
+        Write-Log "CSR $($Request.uuid) error: $_", "ERROR"
         Update-RequestStatus -Id $Request.id -Status "failed" -Error $_.ToString()
         return $false
     }
@@ -121,7 +137,7 @@ function Check-RequestStatus {
         $result = & certutil -config $CAConfig -view -restrict "RequestId=$($Request.requestId)" -out "Disposition" 2>&1 | Out-String
         if ($result -match "Request Disposition:") {
             if ($result -match "Issued") {
-                Write-Log "Request $($Request.uuid) (CA ID: $($Request.requestId)) has been issued"
+                Write-Log "Request $($Request.uuid) (CA ID: $($Request.requestId)) has been issued", "INFO"
                 # Retrieve the certificate
                 $certFile = Join-Path $TempDir "$($Request.uuid).rsp"
                 $retrieveResult = & certreq -retrieve -f -config $CAConfig $Request.requestId $certFile 2>&1 | Out-String
@@ -129,23 +145,23 @@ function Check-RequestStatus {
                     $b64Cert = [Convert]::ToBase64String([IO.File]::ReadAllBytes($certFile))
                     Remove-Item $certFile -Force -ErrorAction SilentlyContinue
                     Update-RequestStatus -Id $Request.id -Status "issued" -RequestId ([int]$Request.requestId) -B64Cert $b64Cert
-                    Write-Log "Certificate retrieved and stored for $($Request.uuid)"
+                    Write-Log "Certificate retrieved and stored for $($Request.uuid)", "INFO"
                 }
                 else {
                     Remove-Item $certFile -Force -ErrorAction SilentlyContinue
-                    Write-Log "Failed to retrieve cert for $($Request.uuid): $retrieveResult"
+                    Write-Log "Failed to retrieve cert for $($Request.uuid): $retrieveResult", "ERROR"
                     Update-RequestStatus -Id $Request.id -Status "failed" -RequestId ([int]$Request.requestId) -Error "Issued but retrieval failed: $retrieveResult"
                 }
             }
             elseif ($result -match "Denied") {
-                Write-Log "Request $($Request.uuid) (CA ID: $($Request.requestId)) was denied"
+                Write-Log "Request $($Request.uuid) (CA ID: $($Request.requestId)) was denied", "WARNING"
                 Update-RequestStatus -Id $Request.id -Status "denied" -RequestId ([int]$Request.requestId)
             }
             # If still pending, do nothing
         }
     }
     catch {
-        Write-Log "Error checking status for $($Request.uuid): $_"
+        Write-Log "Error checking status for $($Request.uuid): $_", "ERROR"
     }
 }
 
@@ -171,4 +187,3 @@ if ($submitted.Count -gt 0) {
 }
 
 Write-Log "CA Worker finished."
-Start-Sleep -Seconds 30

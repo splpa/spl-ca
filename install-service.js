@@ -5,7 +5,7 @@ const path = require('path');
 const APP_ROOT = 'C:\\Apps\\Apps\\spl-ca';
 
 const svc = new Service({
-  name: 'spl-ca-mgr',
+  name: '_spl-ca-mgr',
   description: 'SPL Pathology Associates Certificate Authority Web Service',
   script: path.join(APP_ROOT, 'server.js'),
   workingDirectory: APP_ROOT,
@@ -33,9 +33,9 @@ svc.on('start', () => {
   console.log('Service started.');
   console.log('');
   console.log('Manage with:');
-  console.log('  net start spl-ca-mgr');
-  console.log('  net stop spl-ca-mgr');
-  console.log('  sc query spl-ca-mgr');
+  console.log('  net start _spl-ca-mgr');
+  console.log('  net stop _spl-ca-mgr');
+  console.log('  sc query _spl-ca-mgr');
 });
 
 svc.on('alreadyinstalled', () => {

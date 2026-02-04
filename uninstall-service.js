@@ -5,7 +5,7 @@ const path = require('path');
 const APP_ROOT = 'C:\\Apps\\Apps\\spl-ca';
 
 const svc = new Service({
-  name: 'spl-ca-mgr',
+  name: '_spl-ca-mgr',
   script: path.join(APP_ROOT, 'server.js')
 });
 
