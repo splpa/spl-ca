@@ -1,3 +1,4 @@
+#!/bin/bash
 # --- Configuration ---
 # BASE_DIR is where the script lives
 BASE_DIR=$(dirname $(readlink -f "$0"))
