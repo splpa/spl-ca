@@ -71,15 +71,15 @@ router.post('/request', async (req, res) => {
   return res.json({ isError: true, msg: "Invalid cert request..." });
 });
 
-router.get('/request/:id', async (req, res) => {
+router.get('/request/:uuid', async (req, res) => {
   let eventId = randomUUID();
-  console.log(`${eventId}: Status check for request ${req.params.id} from ${req.ip.replace("::ffff:", "")}`);
-  let requestId = parseInt(req.params.id, 10);
-  if (isNaN(requestId) || requestId <= 0) {
-    console.log(`${eventId}: Invalid request ID: ${req.params.id}`);
-    return res.json({ isError: true, msg: "Invalid request ID. Must be a positive integer." });
+  console.log(`${eventId}: Status check for request ${req.params.uuid} from ${req.ip.replace("::ffff:", "")}`);
+  let uuid = req.params.uuid.toString().trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid)) {
+    console.log(`${eventId}: Invalid request UUID: ${req.params.uuid}`);
+    return res.json({ isError: true, msg: "Invalid request UUID." });
   }
-  return await csrStatus(req, res, requestId, eventId);
+  return await csrStatus(req, res, uuid, eventId);
 });
 
 module.exports = router;

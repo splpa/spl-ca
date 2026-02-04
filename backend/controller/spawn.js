@@ -110,66 +110,6 @@ e.submitCSR = async (csrText, fileName)=> {
   }
   return {isError: true, msg: "CSR file did not exist."};
 }
-e.submitCSRManual = async (csrText, fileName) => {
-  let reqPath = join(certsRoot, `${fileName}.req`);
-  if (existsSync(reqPath)) {
-    let cleanUpRes = cleanUp(reqPath);
-    if (cleanUpRes.isError === true) {
-      return { isError: true, msg: "Error cleaning up old CSR.", err: cleanUpRes.err };
-    }
-  }
-  if (checkCertRoot() === false) {
-    return { isError: true, msg: "Error creating required directory, Admins must investigate." };
-  }
-  try {
-    writeFileSync(reqPath, csrText);
-  } catch (error) {
-    return { isError: true, msg: "Error writing CSR to file.", err: error.toString() };
-  }
-  if (existsSync(reqPath)) {
-    let submitRes = "";
-    try {
-      submitRes = await spawnAsync("certreq", ["-submit", "-config", "SPLROOTCA\\PathologyAssociates-SPLROOTCA-CA", reqPath]);
-    } catch (error) {
-      await cleanUp(reqPath);
-      return { isError: true, msg: "Error submitting CSR.", err: error.toString() };
-    }
-    await cleanUp(reqPath);
-    if (submitRes.includes("Certificate request is pending") === true && /RequestId: \d+/.test(submitRes) == true) {
-      let requestId = Number(submitRes.match(/(?<=RequestId: )\d+/)[0]);
-      return { isError: false, msg: "CSR submitted successfully, pending admin approval.", requestId: requestId };
-    }
-    return { isError: true, msg: "Failed to submit CSR.", err: submitRes.toString() };
-  }
-  return { isError: true, msg: "CSR file did not exist." };
-};
-
-e.checkRequestStatus = async (requestId) => {
-  let viewRes = "";
-  try {
-    viewRes = await spawnAsync("certutil", ["-config", "SPLROOTCA\\PathologyAssociates-SPLROOTCA-CA", "-view", "-restrict", `RequestId=${requestId}`, "-out", "Disposition"]);
-  } catch (error) {
-    // certutil returns non-zero if request not found
-    if (error.message && error.message.includes("0 Rows")) {
-      return { isError: true, msg: "Request ID not found.", status: "not_found" };
-    }
-    return { isError: true, msg: "Error checking request status.", err: error.toString() };
-  }
-  // Parse disposition from output
-  if (viewRes.includes("Request Disposition:")) {
-    if (viewRes.includes("Issued")) {
-      return { isError: false, status: "issued", msg: "Certificate has been issued." };
-    } else if (viewRes.includes("Pending")) {
-      return { isError: false, status: "pending", msg: "Certificate request is pending admin approval." };
-    } else if (viewRes.includes("Denied")) {
-      return { isError: false, status: "denied", msg: "Certificate request was denied." };
-    } else if (viewRes.includes("Failed")) {
-      return { isError: false, status: "failed", msg: "Certificate request failed." };
-    }
-  }
-  return { isError: true, msg: "Unable to determine request status.", err: viewRes };
-};
-
 let signCert = async (requestId, fileName) => {
   let signRes = "";
   try {

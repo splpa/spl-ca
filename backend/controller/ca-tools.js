@@ -1,6 +1,6 @@
 const { KJUR, X509, KEYUTIL } = require('jsrsasign');
-const { updateRecord, getRecord, registerCert, CertProps } = require('../sqlite/db');
-const { retrieveCert, submitCSR, submitCSRManual, checkRequestStatus } = require('./spawn');
+const { updateRecord, getRecord, registerCert, CertProps, addCsrRequest, getCsrRequest } = require('../sqlite/db');
+const { retrieveCert, submitCSR } = require('./spawn');
 const { createHash } = require('crypto');
 const { textIT } = require('./textIT');
 const { convertTimestamp } = require('./tools');
@@ -239,71 +239,63 @@ e.csrRequest = async (req, res, csrText, eventId) => {
     console.log(`${eventId}: CSR signature verification failed.`);
     return res.json({ isError: true, msg: "CSR signature verification failed." });
   }
-  // Extract public key from CSR for filename
+  // Extract public key from CSR
   let csr = KJUR.asn1.csr.CSRUtil.getParam(csrText);
   let csrInfo = new KJUR.asn1.csr.CertificationRequest(csr);
   let publicKey = csrInfo.params.sbjpubkey.replace(/(\r|\n|-+(BEGIN|END) PUBLIC KEY-+)/g, "");
-  let fileName = createHash("sha256").update(publicKey).digest('hex');
-  // Submit CSR without auto-signing
-  let submitRes = await submitCSRManual(csrText, fileName);
-  if (submitRes.isError === true) {
-    console.log(`${eventId}: ${submitRes.msg} ${submitRes.err || ''}`);
-    return res.json({ isError: true, msg: submitRes.msg });
+  // Add to DB queue for PowerShell worker to process
+  let addRes = await addCsrRequest(csrText, publicKey, eventId);
+  if (addRes.isError === true) {
+    console.log(`${eventId}: ${addRes.msg} ${addRes.err || ''}`);
+    return res.json({ isError: true, msg: addRes.msg });
   }
-  console.log(`${eventId}: CSR submitted with requestId ${submitRes.requestId}`);
-  return res.json({ isError: false, msg: submitRes.msg, requestId: submitRes.requestId });
+  console.log(`${eventId}: CSR queued with uuid ${addRes.uuid}`);
+  return res.json({ isError: false, msg: "CSR submitted successfully, pending processing.", uuid: addRes.uuid });
 };
 
-e.csrStatus = async (req, res, requestId, eventId) => {
-  // Check request status with CA
-  let statusRes = await checkRequestStatus(requestId);
-  if (statusRes.isError === true) {
-    console.log(`${eventId}: ${statusRes.msg} ${statusRes.err || ''}`);
-    return res.json({ isError: true, msg: statusRes.msg });
+e.csrStatus = async (req, res, uuid, eventId) => {
+  let record = await getCsrRequest(uuid);
+  if (record === false) {
+    console.log(`${eventId}: CSR request not found for uuid ${uuid}`);
+    return res.json({ isError: true, msg: "Request not found." });
   }
-  if (statusRes.status === "issued") {
-    // Retrieve the certificate
-    let fileName = `request_${requestId}`;
-    let certRes = await retrieveCert(requestId, fileName);
-    if (certRes.isError === true) {
-      console.log(`${eventId}: Error retrieving certificate: ${certRes.msg}`);
-      return res.json({ isError: true, msg: certRes.msg });
-    }
-    // Extract certificate data
-    let certPem = Buffer.from(certRes.b64Cert, "base64").toString();
+  if (record.status === "issued" && record.b64Cert !== "") {
+    // Auto-register the certificate if not already registered
+    let certPem = Buffer.from(record.b64Cert, "base64").toString();
     let cert = new X509();
     try {
       cert.readCertPEM(certPem);
     } catch (error) {
       console.log(`${eventId}: Error parsing certificate: ${error.toString()}`);
-      return res.json({ isError: true, msg: "Error parsing issued certificate." });
+      return res.json({ isError: false, status: "issued", msg: "Certificate issued.", b64Cert: record.b64Cert });
     }
     let certData = extractCertData(cert);
-    if (certData.isError === true) {
-      console.log(`${eventId}: Error extracting cert data: ${certData.err}`);
-      return res.json({ isError: true, msg: "Error extracting certificate data." });
+    if (certData.isError !== true) {
+      let ip = req.ip.replace("::ffff:", "");
+      certData.createdIP = ip;
+      certData.created = new Date();
+      certData.createdTimestamp = `${certData.created.toLocaleDateString()} ${certData.created.toLocaleTimeString().replace(/:\d{2} /g, "")}`;
+      certData.logs = [eventId];
+      certData.pemCert = certPem;
+      certData.requestId = record.requestId;
+      let registerRes = await registerCert(certData, eventId);
+      if (registerRes.isError !== true) {
+        textIT(`Certificate request ${record.uuid} was issued and auto-registered for ${certData.subjectStr}. Please review.`);
+        console.log(`${eventId}: Certificate auto-registered for uuid ${uuid}`);
+      }
     }
-    // Auto-register the certificate
-    let ip = req.ip.replace("::ffff:", "");
-    certData.createdIP = ip;
-    certData.created = new Date();
-    certData.createdTimestamp = `${certData.created.toLocaleDateString()} ${certData.created.toLocaleTimeString().replace(/:\d{2} /g, "")}`;
-    certData.logs = [eventId];
-    certData.pemCert = certPem;
-    certData.requestId = requestId;
-    let registerRes = await registerCert(certData, eventId);
-    if (registerRes.isError === true) {
-      console.log(`${eventId}: ${registerRes.msg} ${registerRes.err || ''}`);
-      // Still return the cert even if registration failed
-      return res.json({ isError: false, status: "issued", msg: "Certificate issued but auto-registration failed: " + registerRes.msg, b64Cert: certRes.b64Cert });
-    }
-    textIT(`Certificate request ${requestId} was issued and auto-registered for ${certData.subjectStr}. Please review.`);
-    console.log(`${eventId}: Certificate issued and auto-registered for requestId ${requestId}`);
-    return res.json({ isError: false, status: "issued", msg: "Certificate has been issued and registered.", b64Cert: certRes.b64Cert });
+    return res.json({ isError: false, status: "issued", msg: "Certificate has been issued.", b64Cert: record.b64Cert });
   }
-  // Return status for pending/denied/failed
-  console.log(`${eventId}: Request ${requestId} status: ${statusRes.status}`);
-  return res.json({ isError: false, status: statusRes.status, msg: statusRes.msg });
+  if (record.status === "denied") {
+    return res.json({ isError: false, status: "denied", msg: "Certificate request was denied." });
+  }
+  if (record.status === "failed") {
+    return res.json({ isError: false, status: "failed", msg: "Certificate request failed.", error: record.error });
+  }
+  // pending_submit or submitted
+  let statusMsg = record.status === "pending_submit" ? "Request is queued for submission." : "Certificate request is pending admin approval.";
+  console.log(`${eventId}: Request ${uuid} status: ${record.status}`);
+  return res.json({ isError: false, status: record.status, msg: statusMsg });
 };
 
 module.exports = e;

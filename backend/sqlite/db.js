@@ -71,10 +71,27 @@ let castFromDB = (val, type) => {
     }
   }
 };
+const csrRequestProps = [
+  { key: "id", slType: "INTEGER PRIMARY KEY AUTOINCREMENT", jsType: "number" },
+  { key: "uuid", slType: "TEXT UNIQUE NOT NULL", jsType: "string" },
+  { key: "csrText", slType: "TEXT NOT NULL", jsType: "string" },
+  { key: "publicKey", slType: "TEXT NOT NULL", jsType: "string" },
+  { key: "status", slType: "TEXT NOT NULL DEFAULT 'pending_submit'", jsType: "string" },
+  { key: "requestId", slType: "INTEGER DEFAULT -1", jsType: "number" },
+  { key: "b64Cert", slType: "TEXT DEFAULT ''", jsType: "string" },
+  { key: "error", slType: "TEXT DEFAULT ''", jsType: "string" },
+  { key: "created", slType: "INTEGER NOT NULL", jsType: "date" },
+  { key: "createdStr", slType: "TEXT NOT NULL", jsType: "dateStr" },
+  { key: "updated", slType: "INTEGER NOT NULL", jsType: "date" },
+  { key: "updatedStr", slType: "TEXT NOT NULL", jsType: "dateStr" }
+];
 let e = {};
 e.certProps = recordProps;
 e.ITLogsProps = ITLogsProps;
+e.csrRequestProps = csrRequestProps;
 initalizeDBs = async () => {
+  // Enable WAL mode for safe concurrent access from Node + PowerShell
+  db.pragma('journal_mode = WAL');
   const CertificatesInfoExists = await db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='CertificatesInfo';`).get();
   if (!CertificatesInfoExists) {
     console.log('Creating CertificatesInfo table');
@@ -84,6 +101,11 @@ initalizeDBs = async () => {
   if (!TextITLogsExists) {
     console.log('Creating TextITLogs table');
     await db.prepare(`CREATE TABLE IF NOT EXISTS IT_Text_Logs (${ITLogsProps.map(p => `${p.key} ${p.slType}`).join(", ")});`).run();
+  }
+  const CsrRequestsExists = await db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='CsrRequests';`).get();
+  if (!CsrRequestsExists) {
+    console.log('Creating CsrRequests table');
+    await db.prepare(`CREATE TABLE IF NOT EXISTS CsrRequests (${csrRequestProps.map(p => `${p.key} ${p.slType}`).join(", ")});`).run();
   }
 }
 initalizeDBs();
@@ -177,4 +199,44 @@ e.addTextLog = async (entry) => {
   ITLogsProps.forEach( p => castedEntry[p.key] = castToDB(entry[p.key], p.jsType) );
   return await db.prepare(`INSERT INTO IT_Text_Logs ( ${ITLogsProps.map(p => p.key).join(", ")} ) VALUES ( ${ITLogsProps.map(p => "?").join(", ")} )`).run(...ITLogsProps.map(p => castedEntry[p.key]));
 };
+e.addCsrRequest = async (csrText, publicKey, eventId) => {
+  let now = new Date();
+  let uuid = randomUUID();
+  let entry = {
+    uuid: uuid,
+    csrText: csrText,
+    publicKey: publicKey,
+    status: "pending_submit",
+    requestId: -1,
+    b64Cert: "",
+    error: "",
+    created: now - 0,
+    createdStr: `${now.toLocaleDateString()} ${now.toLocaleTimeString().replace(/:\d{2} /g, "")}`,
+    updated: now - 0,
+    updatedStr: `${now.toLocaleDateString()} ${now.toLocaleTimeString().replace(/:\d{2} /g, "")}`
+  };
+  try {
+    let cols = csrRequestProps.filter(p => p.key !== "id");
+    let res = await db.prepare(
+      `INSERT INTO CsrRequests (${cols.map(p => p.key).join(", ")}) VALUES (${cols.map(() => "?").join(", ")})`
+    ).run(...cols.map(p => entry[p.key]));
+    console.log(`${eventId}: CSR request added to queue with uuid ${uuid}`);
+    return { isError: false, uuid: uuid, id: res.lastInsertRowid };
+  } catch (error) {
+    return { isError: true, msg: "Error adding CSR request to queue.", err: error.toString() };
+  }
+};
+
+e.getCsrRequest = async (uuid) => {
+  let res = await db.prepare('SELECT * FROM CsrRequests WHERE uuid = ?').get(uuid);
+  if (res === undefined) return false;
+  return res;
+};
+
+e.getCsrRequestById = async (id) => {
+  let res = await db.prepare('SELECT * FROM CsrRequests WHERE id = ?').get(id);
+  if (res === undefined) return false;
+  return res;
+};
+
 module.exports = e;
