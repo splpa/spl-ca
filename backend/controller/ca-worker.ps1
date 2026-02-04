@@ -88,8 +88,9 @@ function Submit-CSR {
     param([hashtable]$Request)
     $reqFile = Join-Path $TempDir "$($Request.uuid).req"
     try {
-        # Write CSR to temp file
-        $Request.csrText | Out-File -FilePath $reqFile -Encoding ascii -NoNewline
+        # Decode base64-stored CSR to PEM and write to temp file
+        $csrPem = [System.Text.Encoding]::ASCII.GetString([System.Convert]::FromBase64String($Request.csrText))
+        $csrPem | Out-File -FilePath $reqFile -Encoding ascii -NoNewline
         # Submit to CA
         $result = & certreq -submit -config $CAConfig $reqFile 2>&1 | Out-String
         # Clean up temp file

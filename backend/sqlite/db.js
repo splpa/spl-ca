@@ -204,7 +204,7 @@ e.addCsrRequest = async (csrText, publicKey, eventId) => {
   let uuid = randomUUID();
   let entry = {
     uuid: uuid,
-    csrText: csrText,
+    csrText: Buffer.from(csrText).toString('base64'),
     publicKey: publicKey,
     status: "pending_submit",
     requestId: -1,
