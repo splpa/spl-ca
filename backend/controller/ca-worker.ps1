@@ -171,3 +171,4 @@ if ($submitted.Count -gt 0) {
 }
 
 Write-Log "CA Worker finished."
+Start-Sleep -Seconds 30
